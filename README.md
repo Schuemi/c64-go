@@ -64,6 +64,9 @@ You can open a virtual keyboard by pressing an hold the "A" button and then the 
 
 In the Menu you can activate the 1541 emulation (the 5 1/4 inch disc drive of the C64). If you activate this, the time to load a game will be much longer. But some games will only work with this option. The 1541 emulation will fall back to "No" if you reset. When you load a savegame, Frodo automatically sets or removes option 1541, depending on what was set at the time of saving.
 
+# NAV
+To start games, the Emulator will start with the program "NAV". This is a file browser for the C64 with joystick support, so you don't have to use the keyboard.
+
 # Compatibility
 
 Frodo has two modes: PC mode and SC mode. PC mode is much faster, but cannot play as many games as SC mode. The ODROID GO is too slow to run the SC mode. So not all games will work, but many! If a game doesn't work, please look for another version of this game. There is hope that another version from another release group will work.
