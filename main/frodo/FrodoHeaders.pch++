@@ -1,0 +1,12 @@
+/* 
+ *  FrodoHeaders.pch++ (for Metrowerks BeIDE)
+ */
+
+#define PC_IS_POINTER 1
+#define PRECISE_CPU_CYCLES 0
+#define PRECISE_CIA_CYCLES 0
+
+#include <Be.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>

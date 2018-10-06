@@ -1,0 +1,10 @@
+/* 
+ *  FrodoSCHeaders.pch++ (for Metrowerks BeIDE)
+ */
+
+#define FRODO_SC
+
+#include <Be.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
