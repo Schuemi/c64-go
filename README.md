@@ -3,6 +3,9 @@ Frodo Port to ODROID-GO
 
 Here is the precompiled Firmware file here: https://github.com/Schuemi/c64-go/releases
 
+![PlantX](https://github.com/Schuemi/c64-go/blob/master/res/IMG_20181006_102247.jpg)
+
+
 Please create these directories on your SD Card manually:
 ```
 /roms/c64/bios
@@ -78,13 +81,13 @@ The next things I'm planning are:
 Donations are very welcome. I have long wondered if I should add a donate button here or not. But, what the hell, if one or the other beer should come out for my troubles here, I like to drink one to you! Thanks a lot!
 
 One beer donation (3.50€):
-<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HTTLDQT45WAPC" rel="some text">![3.50](https://www.paypalobjects.com/en_GB/i/btn/btn_donate_LG.gif)]</a>
+<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HTTLDQT45WAPC" rel="some text">![3.50](https://www.paypalobjects.com/en_GB/i/btn/btn_donate_LG.gif)</a>
 
 Two beer donations (5.00€):
-<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=V32J6VX9Y7QQJ" rel="some text">![5.00](https://www.paypalobjects.com/en_GB/i/btn/btn_donate_LG.gif)]</a>
+<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=V32J6VX9Y7QQJ" rel="some text">![5.00](https://www.paypalobjects.com/en_GB/i/btn/btn_donate_LG.gif)</a>
 
 Donate a six-pack of beer. :) (10.00€):
-<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=QM4DJECCZTKPY" rel="some text">![10.00](https://www.paypalobjects.com/en_GB/i/btn/btn_donate_LG.gif)]</a>
+<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=QM4DJECCZTKPY" rel="some text">![10.00](https://www.paypalobjects.com/en_GB/i/btn/btn_donate_LG.gif)</a>
 
 
 
