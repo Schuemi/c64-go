@@ -36,16 +36,16 @@ JST_UP, JST_RIGHT, JST_DOWN, JST_LEFT, JST_FIRE, JST2_UP, JST2_RIGHT, JST2_DOWN,
 The KEY_FM is a spezial button (default on SELECT). This is the fast mode button. If you press this button, the c64 emulation will run very fast, so you can skip long loading times.
 
 Some other key declarations:
-KEY_SPC Space key
-KEY_CUD cursor UP/DOWN
-KEY_SHL Shift on the left
-KEY_SHR Shift on the right
-KEY_R_S the run/stop key
-KEY_HOM the "CLR HOME" key
-KEY_CTL the CTRL key
-KEY_BAK the button with the arrow to the left
-
-
+KEY_SPC Space key  
+KEY_CUD cursor UP/DOWN  
+KEY_SHL Shift on the left  
+KEY_SHR Shift on the right  
+KEY_R_S the run/stop key  
+KEY_HOM the "CLR HOME" key  
+KEY_CTL the CTRL key  
+KEY_BAK the button with the arrow to the left  
+  
+  
 
 You can use for every game a custom mapping file. Put the file in /odroid/data/c64. It schould have the name [GAME].ini. For example if your gamefiles name is GTA3.d64 the keyfilename has to be GTA3.ini.
 
