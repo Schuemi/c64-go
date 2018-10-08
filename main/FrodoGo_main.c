@@ -55,11 +55,6 @@
 
 extern void frodo_main(void);
 
- /*
-- beim safegame auch die aktuellen prefs speichern und bei state laden, diese wieder laden
-- laustärke wird nicht gespeichert
-- er soll eigentlich nicht die letzte diskette speichern, wenn nav gar nicht läft. tut dies aber
-- überprüfen, ob die letzte diskette, die geladen wurde noch exisitiert (nach dem neustart)*/
 void app_main(void) {
            
   nvs_flash_init();
