@@ -14,7 +14,7 @@
 // Set this to 1 if the 6502 PC should be represented by a real pointer
 #ifndef FRODO_SC
 #ifndef PC_IS_POINTER
-#define PC_IS_POINTER 1
+#define PC_IS_POINTER 0
 #endif
 #endif
 
