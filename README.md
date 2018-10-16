@@ -47,7 +47,7 @@ KEY_BAK the button with the arrow to the left
   
   
 
-You can use for every game a custom mapping file. Put the file in /odroid/data/c64. It schould have the name [GAME].ini. For example if your gamefiles name is GTA3.d64 the keyfilename has to be GTA3.ini.
+You can use for every game a custom mapping file. Put the file in /odroid/data/c64. It should have the name [GAME].ini. For example if your gamefiles name is GTA3.d64 the keyfilename has to be GTA3.ini.
 
 Also you can have a default setting. Go into /odroid/data/c64, if you have ever started c64 there should be a file called "config.ini". In this file you can add your defualt keymapping the same way you would add a key mapping for a game.
 
