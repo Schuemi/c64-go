@@ -62,7 +62,7 @@ public:
 	uint8 *BitmapBase(void);
 	int BitmapXMod(void);
 #ifdef __riscos__
-	void PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joystick, uint8 *joystick2);
+	void PollKeyboard(uint8 *remote_key_matrix, uint8 *rev_matrix, uint8 *joystick, uint8 *joystick2);
 #else
 	void PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joystick1, uint8 *joystick2);
         void fastMode(bool on);

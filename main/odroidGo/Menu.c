@@ -75,28 +75,28 @@ char* lastOpenedFileFullPath;
 int position = 0;
 int selPosition = 0;
 #ifdef WITH_WLAN  
-    #define MENU_ITEMS 18
-#else
     #define MENU_ITEMS 15
+#else
+    #define MENU_ITEMS 12
 #endif
 
 #define MENU_ITEM_LOADFILE      0
 #define MENU_ITEM_SAVEFILE      1
 #define MENU_ITEM_DELETEFILE    2
-#define MENU_ITEM_CHANGEDISK    4
-#define MENU_ITEM_EJECTDISK     5
-#define MENU_ITEM_SWITCHJOY     6
-#define MENU_ITEM_1541          7
-#define MENU_ITEM_RESETBASIC    9
-#define MENU_ITEM_RESETNAV      10
-#define MENU_ITEM_AUDIO         12
+#define MENU_ITEM_CHANGEDISK    3
+#define MENU_ITEM_EJECTDISK     4
+#define MENU_ITEM_SWITCHJOY     5
+#define MENU_ITEM_1541          6
+#define MENU_ITEM_RESETBASIC    7
+#define MENU_ITEM_RESETNAV      8
+#define MENU_ITEM_AUDIO         9
 
 #ifdef WITH_WLAN
-    #define MENU_ITEM_MULTISERVER   14
-    #define MENU_ITEM_MULTICLIENT   15
-    #define MENU_ITEM_ABOUT         17
-#else
+    #define MENU_ITEM_MULTISERVER   11
+    #define MENU_ITEM_MULTICLIENT   12
     #define MENU_ITEM_ABOUT         14
+#else
+    #define MENU_ITEM_ABOUT         11
 #endif
 
 
@@ -111,15 +111,12 @@ static const struct {
    "Load file",
    "Save state",  
    "Delete state",   
-   "",
    "Change disk",
    "Eject disks",
    "Switch joystick port",
    "1541 emulation",
-   "",
    "Reset to Basic",
    "Reset to NAV",
-   "",
    "Audio output",
 #ifdef WITH_WLAN
    "",

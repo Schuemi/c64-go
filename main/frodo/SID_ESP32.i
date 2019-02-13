@@ -11,7 +11,7 @@
 #include "minIni.h"
 
 
-#define AUDIO_BUFFER_SAMPLES 64
+#define AUDIO_BUFFER_SAMPLES 128
 
 //#define NO_SOUND
 typedef short sample;
@@ -25,6 +25,7 @@ QueueHandle_t audioQueue;
 ODROID_AUDIO_SINK sink = ODROID_AUDIO_SINK_SPEAKER;
 
 char stop = 0;
+char noSound = 0;
 char audioPause = 0;
 int volLevel = 0;
 void DigitalRenderer::audioTask(void* arg)
@@ -38,6 +39,7 @@ printf("audioTask: starting\n");
       xQueuePeek(audioQueue, &param, portMAX_DELAY);
       
 #ifndef NO_SOUND
+      
     if (ThePrefs.LimitSpeed){
        
         dg->calc_buffer(streamAudioBuffer, audioBufferSize*sizeof(sample));
@@ -66,6 +68,9 @@ printf("audioTask: starting\n");
 
 
 void DigitalRenderer::init_sound(void) {
+   
+    
+    
     stop = 0;
     char buf[3];
     
@@ -89,6 +94,7 @@ void DigitalRenderer::init_sound(void) {
 
 
 void DigitalRenderer::changeVolumeLevel(void) {
+    if (noSound) return;
     volLevel++;
     if (volLevel > ODROID_VOLUME_LEVEL4) volLevel = ODROID_VOLUME_LEVEL0;
     ini_putl("C64", "VOLUME", volLevel, FRODO_CONFIG_FILE);
@@ -100,7 +106,8 @@ void DigitalRenderer::changeVolumeLevel(void) {
 
 const void* tempPtr = (void*)0x1234;
 void DigitalRenderer::EmulateLine(void) {
-  if (ready)
+   if (noSound) return;
+    if (ready)
   {
     static int divisor = 0;
     static int to_output = 0;
@@ -138,12 +145,14 @@ void DigitalRenderer::EmulateLine(void) {
 
 
 void DigitalRenderer::Pause(void) {
+    if (noSound) return;
     void* tempPtr = (void*)0x1234;
     audioPause=1;
     xQueueSend(audioQueue, &tempPtr, portMAX_DELAY); // to wait until sound was send
     odroid_audio_terminate();
 }
 void DigitalRenderer::Resume(void) {
+    if (noSound) return;
     audioPause=0;
     odroid_audio_init(sink, 44100);
     odroid_audio_volume_set((odroid_volume_level)volLevel);
@@ -151,6 +160,7 @@ void DigitalRenderer::Resume(void) {
 }   
 
 DigitalRenderer::~DigitalRenderer() {
+    if (noSound) return;
 
     stop=1;
     xQueueSend(audioQueue, &tempPtr, portMAX_DELAY); // to wait until sound was send

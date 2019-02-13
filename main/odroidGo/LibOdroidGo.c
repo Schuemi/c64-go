@@ -18,8 +18,8 @@ void c64_beforeStart() {
     lastGame = malloc(1024);
     ini_gets("C64", "LASTGAME", "", lastGame, 1024, FRODO_CONFIG_FILE);
     //C64_1541emluation(ini_getl("C64", "1541emulation", 0, FRODO_CONFIG_FILE));
-    C64_1541emluation(false);
-    if (strlen(lastGame) > 0) C64_InsertDisc(8, lastGame); else C64_InsertDisc(8, "/sd/odroid/data/c64/nav96");
+    
+    C64_InsertDisc(8, "/sd/odroid/data/c64/nav96");
     C64_InsertDisc(9, "");
     C64_InsertDisc(10, "");
     C64_InsertDisc(11, "");
@@ -28,9 +28,11 @@ void c64_beforeStart() {
 
 void c64_started() {
     
+    
 #ifdef WITH_WLAN    
     if (mp_isMultiplayer()) {
         strncpy(lastGame, getMPFileName(),1024);
+       
     }
 #endif
     
@@ -44,7 +46,7 @@ void c64_started() {
     chdir(lastDir);
     
     
-    
+  
     if (strlen(lastGame) > 0) {
         // insert disc
         odroidFrodoGUI_msgBox("Loading...", "Loading last game, please wait", 0);
@@ -56,12 +58,10 @@ void c64_started() {
         if (! fileExist(lastState)) {
 #endif
             C64_LoadSnapshot("/sd/odroid/data/c64/DEFAULT.sta");
-#ifdef WITH_WLAN 
-            if (mp_isServer()) 
-#endif                
-                C64_sendKeys("@8\n"); // reload disc
+            C64_InsertDisc(8, lastGame);
+            if (! mp_isMultiplayer() || mp_isServer())  C64_sendKeys("@8\n"); // reload disc
         } else {
-            
+            C64_InsertDisc(8, lastGame);
             if (! C64_LoadSnapshot(lastState)){
                 // fatal: snapshot is corrupt. Delete file and restart the esp.
                 _remove(lastState);
@@ -79,6 +79,8 @@ void c64_started() {
     }
     free(lastState);
     free(lastDir);
+    
+   
 }
 void SetKeyMapping(int Key, char* mappingString) {
     

@@ -146,6 +146,7 @@ void C64_setStdKeymapping();
 void C64_setKeymapping(char odroidKey, int c64Key);
 void C64_1541emluation( char on );
 char C64_is1541emluation(  );
+void C64_setFrameSkip( int frames ) ;
 ///////////////////////////////////////////
 ///////////////////// FILES ////////////////////////////////////
 

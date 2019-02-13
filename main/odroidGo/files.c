@@ -184,23 +184,41 @@ DIR* _opendir(const char* name)
 
 }
 size_t _fread(_PTR __restrict p, size_t _size, size_t _n, FILE *__restrict f) {
+    
+    size_t s;
     STOP_DISPLAY_FUNCTION();
-    size_t s = fread(p, _size, _n, f);
+    s= fread(p, _size, _n, f);
     RESUME_DISPLAY_FUNCTION();
     return s;
+    /*size_t size = _size*_n;
+    size_t readed = 0;
+    for (int i = 0; i < size; i+=0x100) {
+        int toRead = 0x100;
+        if (i + 0x100 > size) toRead = size%0x100;
+        STOP_DISPLAY_FUNCTION();
+        size_t r =fread(p+readed, toRead, 1, f);
+        RESUME_DISPLAY_FUNCTION();
+        if (r == 1) readed += toRead;
+        if (r == 0) break;
+        
+    }
+    
+    return _n;*/
 }
 size_t _fwrite(const _PTR __restrict p , size_t _size, size_t _n, FILE * f) {
     // i had problems with fwrite (sd write errors, if the datasize is > 0x100) 
     
-    STOP_DISPLAY_FUNCTION();
+    
     size_t size = _size*_n;
     int written = 0;
     for (int i = 0; i < size; i+=0x100) {
         int toWrite = 0x100;
         if (i + 0x100 > size) toWrite = size%0x100;
+        STOP_DISPLAY_FUNCTION();
         written +=fwrite(p+i, toWrite, 1, f);
+        RESUME_DISPLAY_FUNCTION();
     }
-    RESUME_DISPLAY_FUNCTION();
+    
     return written;
 }
 
@@ -333,10 +351,11 @@ FILE* _fopen(const char *__restrict _name, const char *__restrict _type) {
     } else {
         strncpy(buffer, _name, 1024);
     }
-    //printf("fopen: %s (%s)\n", buffer, _type);
+    
     STOP_DISPLAY_FUNCTION();
     FILE* f = fopen(buffer, _type);
     RESUME_DISPLAY_FUNCTION();
+    printf("fopen: %s (%s) %p\n", buffer, _type, f);
     if (f)openfiles++;
     //printf("open files: %d (%d)\n",openfiles,f);
     

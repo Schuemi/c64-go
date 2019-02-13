@@ -55,7 +55,7 @@ esp_err_t odroid_sdcard_open(const char* base_path)
         memset(&mount_config, 0, sizeof(mount_config));
 
     	mount_config.format_if_mount_failed = false;
-    	mount_config.max_files = 20;
+    	mount_config.max_files = 40;
 
 
     	// Use settings defined above to initialize SD card and mount FAT filesystem.

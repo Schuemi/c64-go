@@ -22,6 +22,12 @@
 #include "ROlib.h"
 #endif
 
+//#define VERBOSE_VIDEO
+
+#ifdef VERBOSE_VIDEO
+extern int64_t mtimer;
+extern char scounter; 
+#endif
 
 // false: Frodo, true: FrodoSC
 extern bool IsFrodoSC;

@@ -8,6 +8,7 @@
 #include "main.h"
 #include "stdbool.h"
 #include "esp_timer.h"
+#include "odroid_display.h"
 
 #include "LibOdroidGo.h"
 static struct timeval tv_start;
@@ -51,6 +52,7 @@ static struct timeval tv_start;
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/types.h>
+
 
 int usleep(unsigned long int microSeconds)
 {
@@ -122,7 +124,9 @@ void C64::Run(void)
 	TheCIA1->Reset();
 	TheCIA2->Reset();
 	TheCPU1541->Reset();
-
+        
+        ThePrefs.LimitSpeed = true;
+        
 	// Patch kernal IEC routines
 	orig_kernal_1d84 = Kernal[0x1d84];
 	orig_kernal_1d85 = Kernal[0x1d85];
@@ -134,44 +138,64 @@ void C64::Run(void)
 
 
 /*
- *  Vertical blank: Poll keyboard and joysticks, update window
+ *  Vertical blank: Poll keyboard and joysticks, update window, get WLAN remote state
  */
-//int counter = 0;
+
 void C64::VBlank(bool draw_frame)
 {
 	// Poll keyboard
-    //counter++;
-    //    if (counter == 3)     {
-    //        counter = 0;
+      
+   
+#ifdef VERBOSE_VIDEO
+    scounter++;
+    if (scounter == 10) {
+      
+        printf("%llu -- %d -- %d\n", (esp_timer_get_time() - mtimer) / 10, ThePrefs.LimitSpeed, getMultiplayState());
+        mtimer = esp_timer_get_time();
+        scounter = 0;
+
+    }
+#endif      
+
+        if (draw_frame
+#ifdef WITH_WLAN
+         ||  ! mp_isMultiplayer()  
+#endif     
+                ) {
+            for (int i = 0; i < 8; i++) {TheCIA1->KeyMatrix[i] = 0xff; TheCIA1->RevMatrix[i] = 0xff;}
+
             TheDisplay->PollKeyboard(TheCIA1->KeyMatrix, TheCIA1->RevMatrix, &joykey, &joykey2);
+            #ifdef WITH_WLAN	
+                   exchangeNetworkState(TheCIA1->KeyMatrix, TheCIA1->RevMatrix, &joykey, &joykey2);
+            #endif
 
-        #ifdef WITH_WLAN	
-                exchangeNetworkState(TheCIA1->KeyMatrix, TheCIA1->RevMatrix, &joykey, &joykey2);
-        #endif
-
-
-
-                if (ThePrefs.JoystickSwap){
-                        TheCIA1->Joystick2 = joykey;
-                        TheCIA1->Joystick1 = joykey2;
-                }
-                else {
-                        TheCIA1->Joystick1 = joykey;
-                        TheCIA1->Joystick2 = joykey2;
-                }
-    //    }       
+            if (ThePrefs.JoystickSwap 
+            #ifdef WITH_WLAN
+                    || getMultiplayState() == MULTIPLAYER_CONNECTED_CLIENT
+            #endif       
+                    ){
+                    TheCIA1->Joystick2 = joykey;
+                    TheCIA1->Joystick1 = joykey2;
+            }
+            else {
+                    TheCIA1->Joystick1 = joykey;
+                    TheCIA1->Joystick2 = joykey2;
+            }
+        }
 	// Count TOD clocks
-	TheCIA1->CountTOD();
+        TheCIA1->CountTOD();
 	TheCIA2->CountTOD();
-
+          
 	// Update window if needed
 	if (draw_frame) {
     	TheDisplay->Update();
+        
+       /* No speed check. The sound shlould automaticly slow don't to the right speed.
 #ifndef WITH_WLAN       
         if (ThePrefs.LimitSpeed) {
 #else   
         
-        if (ThePrefs.LimitSpeed && ! getMultiplayState() == MULTIPLAYER_CONNECTED_CLIENT) {     
+        if (ThePrefs.LimitSpeed && ! (getMultiplayState() == MULTIPLAYER_CONNECTED_CLIENT)) {     
 #endif
       // Calculate time between VBlanks
 		struct timeval tv;
@@ -183,7 +207,7 @@ void C64::VBlank(bool draw_frame)
 		tv.tv_sec -= tv_start.tv_sec;
 		double elapsed_time = (double)tv.tv_sec * 1000000 + tv.tv_usec;
 		speed_index = 20000 / (elapsed_time + 1) * ThePrefs.SkipFrames * 100;
-
+                //printf("speed index: %f\n", speed_index);
 		// Limit speed to 100%
 		if (speed_index > 100) {
 			usleep((unsigned long)(ThePrefs.SkipFrames * 20000 - elapsed_time));
@@ -191,12 +215,14 @@ void C64::VBlank(bool draw_frame)
 		}
 
 		gettimeofday(&tv_start, NULL);
-        }
+        }*/
 		
-                
+               
 		
 	}
         
+        
+
      
 }
 

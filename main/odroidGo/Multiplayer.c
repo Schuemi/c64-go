@@ -49,15 +49,18 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
-
+#include "sysdeps.h"
 
 typedef char byte;
 
 #define EXAMPLE_ESP_WIFI_MODE_AP   1 //CONFIG_ESP_WIFI_MODE_AP //TRUE:AP FALSE:STA
-#define MP_ESP_WIFI_SSID      "C64MultiplayerV0.01"
+#define MP_ESP_WIFI_SSID      "C64MultiplayerV0.03"
 #define MP_ESP_WIFI_PASS      ""
 #define MP_MAX_STA_CONN       1
+
+
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t wifi_event_group;
@@ -71,19 +74,25 @@ struct timeval TV;
 static struct sockaddr_in PeerAddr;
 
 
-volatile unsigned char currentLocalTickNumber = 0;
-volatile unsigned char currentRemoteTickNumber = 0;
-volatile char currentLocalJoy = 0;
-volatile char lastLocalJoy = 0;
+unsigned char currentLocalTickNumber = 0;
+unsigned char currentRemoteTickNumber = 2;
 
-char key_matrix[8];
-char lastkey_matrix[8];
+char lastLocalJoy = 0xff;
+char currentLocalJoy = 0xff;
 
-char currentremoteJoy = 0;
-char lastremoteJoy = 0;
+
+char remote_key_matrix[8];
+char remote_lastkey_matrix[8];
+
+char my_key_matrix[8];
+char my_lastkey_matrix[8];
+
+char currentremoteJoy = 0xff;
+char lastremoteJoy = 0xff;
 char stopNet = 0;
 char gotRemoteData = 0;
 char tcpSend = 0;
+char oneTickBehind = 0;
 
 char playFileName[1024];
 void copyFile(const char* fileName, const char* destination);
@@ -94,6 +103,7 @@ uint16_t recievDataBlob(char* data, uint16_t maxSize);
 int NETSend(const char *Out,int N);
 int NETRecv(char *In,int N);
 
+char keyMatrixChanged = 0;
 SemaphoreHandle_t netMutex = NULL;
 
 /* The event group allows multiple bits for each event,
@@ -111,27 +121,77 @@ enum MP_SERVER_STATE{
 enum MP_SERVER_STATE server_state;
 MULTIPLAYER_STATE mpState = MULTIPLAYER_NOT_CONNECTED;
 
+inline void lockMutex(int i) {
+    //printf("lock: %d\n", i);
+    xSemaphoreTake(netMutex, portMAX_DELAY);
+    //printf("locked: %d\n", i);
+}
+inline void unlockMutex(int i) {
+    //printf("unlock: %d\n", i);
+    xSemaphoreGive(netMutex);
+    //printf("unlocked: %d\n", i);
+}
+uint16_t crc16(const unsigned char* data_p, int length){
+    uint8_t x;
+    uint16_t crc = 0xFFFF;
 
-
+    while (length--){
+        x = crc >> 8 ^ *data_p++;
+        x ^= x>>4;
+        crc = (crc << 8) ^ ((unsigned short)(x << 12)) ^ ((unsigned short)(x <<5)) ^ ((unsigned short)x);
+    }
+    return crc;
+}
 void sendTask(void* arg)
 {
 
-  char sendBuf[20];
-  memset(sendBuf, 0, 20);
+  char sendBuf[22];
+  memset(sendBuf, 0, 22);
+  char send = 0;
   while(!stopNet)
   {
+      
       if (tcpSend) {
-        xSemaphoreTake(netMutex, portMAX_DELAY);
-        sendBuf[0] = 0xFF;
-        sendBuf[1] = currentLocalTickNumber;
-        sendBuf[2] = lastLocalJoy;
-        sendBuf[3] = currentLocalJoy;
- if (mpState == MULTIPLAYER_CONNECTED_SERVER)   { memcpy(sendBuf + 4, key_matrix, 8); memcpy(sendBuf + 12, lastkey_matrix, 8);}
-        
-        NETSend(sendBuf,20);
-        xSemaphoreGive(netMutex);
-      }
-      vTaskDelay(7 / portTICK_PERIOD_MS);
+       
+          send = 0;
+          lockMutex(1);
+          if (keyMatrixChanged != 0) send = 1; 
+          memcpy(sendBuf + 4, my_key_matrix, 8); memcpy(sendBuf + 12, my_lastkey_matrix, 8);
+          
+          
+          if (send)
+              sendBuf[0] = 0x00;
+          else
+              sendBuf[0] = 0x01;
+          sendBuf[1] = currentLocalTickNumber;
+          sendBuf[2] = lastLocalJoy;
+          sendBuf[3] = currentLocalJoy;
+          
+          unlockMutex(1);
+          
+          if (! send) {
+            unsigned short crc = crc16(sendBuf, 4);
+            memcpy(sendBuf + 4, &crc, 2);
+            NETSend(sendBuf,6);
+            // printf("send: "); for(int i = 0; i < 6; i++) printf("%02x, ", sendBuf[i]); printf("\n");
+             
+          }
+          else{
+            unsigned short crc = crc16(sendBuf, 20);
+            memcpy(sendBuf + 20, &crc, 2);
+            NETSend(sendBuf,6);
+            NETSend(sendBuf + 6,16);
+          //  printf("send: "); for(int i = 0; i < 22; i++) printf("%02x, ", sendBuf[i]); printf("\n");
+           
+          } 
+
+          
+        } 
+      
+       vTaskDelay(18 / portTICK_PERIOD_MS);
+          
+    
+          
       
   }
 
@@ -146,25 +206,56 @@ void recievTask(void* arg)
 {
 
 
-  char recievBuf[20];
+  char recievBuf[22];
   while(!stopNet)
   {
-    recievBuf[0] = 0;
-    if(NETRecv(recievBuf,20)==20 && recievBuf[0] == 0xff) {
-        xSemaphoreTake(netMutex, portMAX_DELAY);
-        if (! gotRemoteData) {
+    recievBuf[0] = 0x10;
+    if(NETRecv(recievBuf,6)==6 && (recievBuf[0] == 0x00 || recievBuf[0] == 0x01)) {
+        // check crc
+        char crcOkay = 0;
+        
+        if (recievBuf[0] == 0x01) {
+            // printf("reciev(%d, %d): ", currentRemoteTickNumber, gotRemoteData);for(int i = 0; i < 6; i++) printf("%02x, ", recievBuf[i]); printf("\n");
+            unsigned short crc = crc16(recievBuf, 4);
+            unsigned short* rcrc = (unsigned short*)(recievBuf+4);
+            if (*rcrc == crc) crcOkay = 1;
+           
+        }
+        if (recievBuf[0] == 0x00) {
+            NETRecv(recievBuf+6,16);
+           // printf("reciev(%d, %d): ", currentRemoteTickNumber, gotRemoteData);for(int i = 0; i < 22; i++) printf("%02x, ", recievBuf[i]); printf("\n");
+            unsigned short crc = crc16(recievBuf, 20);
+            unsigned short* rcrc = (unsigned short*)(recievBuf+20);
+            if (*rcrc == crc) crcOkay = 1;
+            
+        }
+        if (! crcOkay) {printf("CRC!");continue;}
+        lockMutex(2);
+        if (! gotRemoteData && currentRemoteTickNumber != recievBuf[1]) {
+            
+            gotRemoteData = 1;
+            
+            
             currentremoteJoy = recievBuf[3];
             lastremoteJoy = recievBuf[2];
-            if (currentRemoteTickNumber != recievBuf[1]){gotRemoteData = 1; }
+            
             currentRemoteTickNumber = recievBuf[1];
-        }
-if (mpState == MULTIPLAYER_CONNECTED_CLIENT){ memcpy(key_matrix, recievBuf+4, 8); memcpy(lastkey_matrix, recievBuf+12, 8); }
-        xSemaphoreGive(netMutex);
-
-        
+            
+            if (recievBuf[0] == 0x00){
+                memcpy(remote_key_matrix, recievBuf+4, 8); memcpy(remote_lastkey_matrix, recievBuf+12, 8); 
+               // 
+            } else {
+                memcpy(remote_key_matrix, remote_lastkey_matrix, 8); 
+                
+            }
+            
+        } 
+        unlockMutex(2);
     } else {
-        if (recievBuf[0] != 0xff) NETRecv(recievBuf,1);
+        printf("################!\n");
+        if (recievBuf[0] != 0x00 || recievBuf[0] != 0x01) NETRecv(recievBuf,1);
     }
+   
       
    
   }
@@ -220,6 +311,7 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
 
 void wifi_init_softap()
 {
+    lastLocalJoy = 0xff;
     wifi_event_group = xEventGroupCreate();
     netMutex = xSemaphoreCreateMutex();
     tcpip_adapter_init(); 
@@ -253,6 +345,7 @@ void wifi_init_softap()
 
 void wifi_init_sta()
 {
+    lastLocalJoy = 0xff;
     wifi_event_group = xEventGroupCreate();
     netMutex = xSemaphoreCreateMutex();
     tcpip_adapter_init();
@@ -287,24 +380,29 @@ char mp_isServer() {
 char mp_isMultiplayer() {
     return (mpState != MULTIPLAYER_NOT_CONNECTED);
 }
-
-void server_init()
+void mp_init(char client)
 {
     mpState = MULTIPLAYER_INIT;
     server_state = MP_NO_CONNECTION;
-    wifi_init_softap();
     
-
-    currentRemoteTickNumber = 99;
-
+    if (client) {
+        wifi_init_sta();
+    } else {
+        wifi_init_softap();
+    }
+    
+    for (int i = 0; i < 8; i++) { remote_key_matrix[i] = 0xff;  remote_lastkey_matrix[i] = 0xff; my_key_matrix[i] = 0xff;  my_lastkey_matrix[i] = 0xff;}
+    currentRemoteTickNumber = 98;
+    
+}
+void server_init()
+{
+    mp_init(0);
+    
 }
 void client_init() {
-    mpState = MULTIPLAYER_INIT;
-    server_state = MP_NO_CONNECTION;
-    wifi_init_sta();
-   
-
-    currentRemoteTickNumber = 98;
+    mp_init(1);
+    
 }
 int waitKeyOrStatusChange()
 {
@@ -323,11 +421,15 @@ void client_try_connect()
 {
     
     odroidFrodoGUI_msgBox("Multiplayer", "Try to connect to server...\n\nPress a key to stop trying", 0);
-    odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+    
     int key;
     playFileName[0] = 0;
     if (server_state == MP_NO_CONNECTION) key = waitKeyOrStatusChange();
-    
+    if (key != -1) {
+        // key pressed
+        odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+        esp_restart();
+    }
     if (server_state == STA_GOT_IP) {
         odroidFrodoGUI_msgBox("Multiplayer", "We are connecting...", 0);
         printf("NET-CLIENT: Connecting to Server...\n");
@@ -341,35 +443,36 @@ void client_try_connect()
         /* Create a socket */
 
      memcpy(&PeerAddr,&Addr,sizeof(PeerAddr));
-     if((SSocket=socket(AF_INET,SOCK_DGRAM,0))<0) return;     
+     if((SSocket=socket(AF_INET,SOCK_DGRAM,IPPROTO_RAW))<0) return;     
 
        
         
         printf("NET-CLIENT: Created socket...\n");
 
           mpState = MULTIPLAYER_CONNECTED_CLIENT;
-          char buffer[6];
-          memcpy(buffer, "Hello", 6);
-          NETSend(buffer, 6);
+          
+          // sending random seed
+          struct timeval tv;
+          gettimeofday(&tv, NULL);
+          uint16_t seed = tv.tv_usec;
+          srand(seed);
+          char buffer[12];
+          snprintf(buffer, 12, "%u", seed);
+          printf("sending seed: %s\n", buffer);
+          NETSend(buffer, strlen(buffer) + 1);
           
           printf("wait rom...\n");
           
           int g = recievDataBlob(playFileName, 1024);
           printf("filename: %s\n", playFileName);
-          
-         /*struct timeval to;
-         to.tv_sec = 1;
-         to.tv_usec = 0;
-         setsockopt(SSocket,SOL_SOCKET,SO_RCVTIMEO,&to,sizeof(to));*/
-         
-                        
-          xTaskCreatePinnedToCore(&sendTask, "sendTask", 2048, NULL, 2, NULL, 0);
-          xTaskCreatePinnedToCore(&recievTask, "recievTask", 2048, NULL, 2, NULL, 0);
-
         
+          xTaskCreatePinnedToCore(&sendTask, "sendTask", 2048, NULL,  5, NULL, 1);
+          xTaskCreatePinnedToCore(&recievTask, "recievTask", 2048, NULL,  5, NULL, 1);
+
+         
     }
     
-    
+    odroid_settings_WLAN_set(ODROID_WLAN_NONE);
 }
 
 
@@ -377,7 +480,7 @@ void server_wait_for_player()
 {
     server_state = MP_NO_CONNECTION;
     odroidFrodoGUI_msgBox("Multiplayer", "Waiting for player...\n\nPress a key to stop waiting", 0);
-    odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+    
    playFileName[0] = 0;
    
     if (waitKeyOrStatusChange() == -1 && server_state == MP_CLIENT_IS_CONNECTING) {
@@ -388,7 +491,7 @@ void server_wait_for_player()
         Addr.sin_family      = AF_INET;
         Addr.sin_port        = htons(1234);
         memcpy(&PeerAddr,&Addr,sizeof(PeerAddr));
-        if((SSocket=socket(AF_INET,SOCK_DGRAM,0))<0) return;
+        if((SSocket=socket(AF_INET,SOCK_DGRAM,IPPROTO_RAW))<0) return;
          if(bind(SSocket,(struct sockaddr *)&Addr,sizeof(Addr))<0)
         { close(SSocket);return; }
 
@@ -400,16 +503,8 @@ void server_wait_for_player()
         printf("wait message...\n");
         int s = NETRecv(buffer+s, 6);
         printf("!!!!!!!%d got message: %s\n", s, buffer);
-        
-        
-        /*
-        to.tv_sec = 0;
-        to.tv_usec = 10000;
-        setsockopt(SSocket,SOL_SOCKET,SO_SNDTIMEO,&to,sizeof(to));  */  
-        /*struct timeval to;
-        to.tv_sec = 1;
-        to.tv_usec = 0;
-        setsockopt(SSocket,SOL_SOCKET,SO_RCVTIMEO,&to,sizeof(to));*/
+        // setting random seed
+        srand(atoi(buffer));
         
         char* rom = odroid_settings_RomFilePath_get();
         sendDataBlob(rom, strlen(rom) + 1);
@@ -418,10 +513,15 @@ void server_wait_for_player()
         
         
         xTaskCreatePinnedToCore(&sendTask, "sendTask", 2048, NULL, 5, NULL, 1);
-        xTaskCreatePinnedToCore(&recievTask, "recievTask", 2048, NULL, 5, NULL, 0);        
+        xTaskCreatePinnedToCore(&recievTask, "recievTask", 2048, NULL, 5, NULL, 1);        
         
         
-
+        odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+    } else {
+       // key pressed
+        odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+        esp_restart();
+    
     }
     
     
@@ -475,17 +575,7 @@ int NETRecv(char *In,int N)
   /* Return number of bytes received */
   return(N-I);
 }
-uint16_t crc16(const unsigned char* data_p, int length){
-    uint8_t x;
-    uint16_t crc = 0xFFFF;
 
-    while (length--){
-        x = crc >> 8 ^ *data_p++;
-        x ^= x>>4;
-        crc = (crc << 8) ^ ((unsigned short)(x << 12)) ^ ((unsigned short)(x <<5)) ^ ((unsigned short)x);
-    }
-    return crc;
-}
 #define FILEBUFFER_SIZE 1024
 void copyFile(const char* fileName, const char* destination) {
     
@@ -614,50 +704,114 @@ uint16_t recievDataBlob(char* data, uint16_t maxSize) {
 inline void copyKeyState(byte* a, byte* b) {
     memcpy(a,b,16);
 }
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
+
+/* For Testing purposes. Have to clean this up, if I don't need it anymore
+uint32_t checker = 0;
+uint32_t checker2 = 0;
+uint32_t checker3 = 0;
+uint32_t checker4 = 0;
+*/
 void exchangeNetworkState(unsigned char *lkey_matrix, unsigned char *lrev_matrix, unsigned char *joystick1, unsigned char *joystick2)
 {
    
+ 
    if (mpState == MP_NO_CONNECTION) return;
    
-   
    tcpSend = 1;
-   while (! gotRemoteData) vTaskDelay(0);
-   xSemaphoreTake(netMutex, portMAX_DELAY);
-   gotRemoteData = 0;
+  
    
+   while (! gotRemoteData)vTaskDelay(0);
+   lockMutex(3);
+   
+   gotRemoteData = 0;
+  
 
-   char rJoy = 0;
-   char last = 0;
+   char rJoy;
+   
+   /* For Testing purposes. Have to clean this up, if I don't need it anymore
+   char lotb = oneTickBehind;
+   */
+   
+   
    if (currentRemoteTickNumber > currentLocalTickNumber || (currentRemoteTickNumber == 0 && currentLocalTickNumber == 255)) {
        rJoy = lastremoteJoy;
-       last = 1;
+       oneTickBehind = 1;
    }else{
        rJoy = currentremoteJoy;
+       oneTickBehind = 0;
+      
    }
    
-   xSemaphoreGive(netMutex);
-   while (currentRemoteTickNumber < currentLocalTickNumber && currentRemoteTickNumber != 0){vTaskDelay(0);}
-   xSemaphoreTake(netMutex, portMAX_DELAY);
+  
+   /* For Testing purposes. Have to clean this up, if I don't need it anymore
+   if (checker > 2000*0xff) {
+    unsigned char bit = rand() % 5;
+    *joystick1 = 0xff;
+    *joystick1 &= ~(1 << bit);
+   }*/
+   
+   
    
    lastLocalJoy = currentLocalJoy;
+   currentLocalJoy = *joystick1;
+   
+   if (mpState == MULTIPLAYER_CONNECTED_CLIENT) {*joystick1 = rJoy;*joystick2 = lastLocalJoy;}
+   if (mpState == MULTIPLAYER_CONNECTED_SERVER) {*joystick2 = rJoy;*joystick1 = lastLocalJoy;}
+   
+   /////// did the key matrix changed? We don't have to resend it, if there is no change
+    keyMatrixChanged = 0;
+    for(uint8_t i = 0; i < 8; i++){
+           if (lkey_matrix[i] != my_key_matrix[i]) {keyMatrixChanged = 1; break;}
+           if (lkey_matrix[i] != my_lastkey_matrix[i]) {keyMatrixChanged = 1; break;}
+    }
    
    
-   if (mpState == MULTIPLAYER_CONNECTED_CLIENT) currentLocalJoy = *joystick2; else currentLocalJoy = *joystick1;
+   ////////////////////////////////////////
    
-   if (mpState == MULTIPLAYER_CONNECTED_CLIENT) *joystick1 = rJoy;
-   if (mpState == MULTIPLAYER_CONNECTED_SERVER) *joystick2 = rJoy;
    
-   if (mpState == MULTIPLAYER_CONNECTED_CLIENT) {
-       if (last) memcpy(lkey_matrix, lastkey_matrix, 8); else memcpy(lkey_matrix, key_matrix, 8);
-       for(int i = 0; i < 8; i++) lrev_matrix[i] = 0xff ^ lrev_matrix[i];
-       
-   } else {
-       memcpy(lastkey_matrix, key_matrix, 8);
-       memcpy(key_matrix, lkey_matrix, 8);
-   }
+    memcpy(my_lastkey_matrix, my_key_matrix, 8);
+    memcpy(my_key_matrix, lkey_matrix, 8);
+    
+    memcpy(lkey_matrix, my_lastkey_matrix, 8);
+    
+    /// add remote keys to mine
+   char* lkm;
+   if (oneTickBehind) lkm = remote_lastkey_matrix; else lkm = remote_key_matrix;
+   for(int i = 0; i < 8; i++) lkey_matrix[i] &= lkm[i];
+   
+   
+   /// set the rev keyboard
+   memset(lrev_matrix, 0xff,8);
+    for(int i = 0; i < 8; i++) {
+     if (lkey_matrix[i] != 0xff) for(int b = 0; b < 8; b++) {
+         if (! CHECK_BIT(lkey_matrix[i], b))  lrev_matrix[b] &= ~(1 << i); // unset byte
+     }
+    }
+   
    currentLocalTickNumber++;
-   xSemaphoreGive(netMutex);
+   
+  /* For Testing purposes. Have to clean this up, if I don't need it anymore
+  for(uint8_t i = 0; i < 8; i++) {checker3 += lkey_matrix[i];  } // printf("%02x ",lkey_matrix[i]);
+  for(uint8_t i = 0; i < 8; i++) {checker4 += lrev_matrix[i];  } 
+  checker += *joystick1; checker2 += *joystick2;
+  
+  if (currentLocalTickNumber % 16 == 0 || oneTickBehind < lotb) {
+    printf("TickNumber: %u (%u) ", currentLocalTickNumber, currentRemoteTickNumber);
+    //printf(" - %u - %u - %u\n", checker, checker3, checker2);
+    printf(" - %u (%02x) - %u (%02x) - %d -- %d -- %d, %d\n\n", checker, *joystick1, checker2, *joystick2, oneTickBehind, keyMatrixChanged, checker3, checker4);
+  }
+  
+  
+  if (oneTickBehind < lotb) vTaskDelay(rand()%10000000);
+    */
+   
+   
+   unlockMutex(3);
+   
+ 
+
    return;
 }
 

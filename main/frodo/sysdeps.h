@@ -6,10 +6,11 @@
  */
 
 #include "sysconfig.h"
-
+#ifdef __cplusplus
 extern "C"
 {
-  
+#endif
+    
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -183,4 +184,38 @@ typedef long int32;
 #endif	// __BEOS__
 
 #define UNUSED(x) (x = x)
+
+#ifndef ownrand
+    #define ownrand
+    typedef unsigned long int  u4;
+    typedef struct ranctx { u4 a; u4 b; u4 c; u4 d; u4 seed;} ranctx;
+    #define rot(x,k) (((x)<<(k))|((x)>>(32-(k))))
+    #define rand xrand
+    #define srand xsrand
+
+    extern ranctx pseudoRand;
+    
+    static int xrand(){
+        
+        u4 e = pseudoRand.a - rot(pseudoRand.b, 27);
+        pseudoRand.a = pseudoRand.b ^ rot(pseudoRand.c, 17);
+        pseudoRand.b = pseudoRand.c + pseudoRand.d;
+        pseudoRand.c = pseudoRand.d + e;
+        pseudoRand.d = e + pseudoRand.a;
+        return pseudoRand.d;
+    }
+    static void xsrand(u4 seed) {
+        printf("setting seed to %lu\n", seed);
+        u4 i;
+        pseudoRand.seed = seed;
+        pseudoRand.a = 0xf1ea5eed, pseudoRand.b = pseudoRand.c = pseudoRand.d = seed;
+        for (i=0; i<20; ++i) {
+            (void)xrand();
+        }
+    }
+    
+#ifdef __cplusplus
 }
+#endif
+
+#endif

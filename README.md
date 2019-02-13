@@ -74,11 +74,38 @@ To start games, the Emulator will start with the program "NAV". This is a file b
 Frodo has two modes: PC mode and SC mode. PC mode is much faster, but cannot play as many games as SC mode. The ODROID GO is too slow to run the SC mode. So not all games will work, but many! If a game doesn't work, please look for another version of this game. There is hope that another version from another release group will work.
 
 
+# Multiplayer
+
+Multiplayer is really fun. :)
+
+To use multiplayer you need to have exactly the same BIOS files on both devices and the same game file (*.d64) in the same directory. The best way is to simply copy the SD from one device.
+
+One is the server, the other is the client. The server starts a game with "start multiplayer server" in the menu, the other one chooses "multiplayer client". The server selects a floppy disk. Both devices will restart and they run now the same game.
+
+The "joystick" of the server runs in port 1, the client has port 2.
+
+In multiplayer mode there are a few limitations:
+
+- You cannot enter the menu. To start another game or not to play in pairs, please turn off the devices.
+- no save games
+
+Most games working in single player, also work very well in multiplayer. I have tested some games, my favorites were : Blood Money, Pitstop II, IK+, Baberian and Bubble Bobble :)
+
+You can't have two Multiplayer games with 4 devices at the same place yet. They're gonna bother each other, because there are no "Multiplayer rooms" yet.
+
+
+How does this work?
+
+- The server starts an access point with a hidden Siid
+- The client searches for this access point, if he finds it he will connect
+- The server tells the client what game they whant to play
+- after starting the game on both devices they send RAW TCP packts with joysick and keyboard data to each other. Both devices have to know what the other is doing in every vblank.
+
 # Next:
 
 The next things I'm planning are:
 
-- Multiplayer mode as in fMSX
+- Bugfix, bugfix, bugfix.
 
 
 # Donations 

@@ -112,6 +112,12 @@ void C64_1541emluation( char on ) {
     theC64->NewPrefs(&p);
     ThePrefs = p;
 }
+void C64_setFrameSkip( int frames ) {
+    
+    ThePrefs.SkipFrames = frames;
+    
+}
+
 char C64_is1541emluation(  ) {
     return ThePrefs.Emul1541Proc;
 }

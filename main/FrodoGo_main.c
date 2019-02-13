@@ -46,7 +46,12 @@
 #include "odroid_settings.h"
 #include "utils.h"
 
+#include <sys/time.h>
+
+#include "sysdeps.h"
+
 #define SD_BASE_PATH "/sd"
+
 
 // To build set in sdkconfig:
 
@@ -54,6 +59,8 @@
 // otherwise I got "E (9654) diskio_sdmmc: sdmmc_read_blocks failed (257)" errors on some d64 files.
 
 extern void frodo_main(void);
+ranctx pseudoRand;
+
 
 void app_main(void) {
            
@@ -83,7 +90,12 @@ void app_main(void) {
         ODROID_WLAN_TYPE wlan = odroid_settings_WLAN_get();
         if (wlan == ODROID_WLAN_AP) server_init();
         if (wlan == ODROID_WLAN_STA) client_init();
-   
+        if (wlan == ODROID_WLAN_NONE) {
+            // we are not in WLAN, so we can have a better random
+            struct timeval tv;
+            gettimeofday(&tv, NULL);
+            srand(tv.tv_usec);
+        }
     #endif
    
    if (! failure) { 

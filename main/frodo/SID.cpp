@@ -377,7 +377,7 @@ private:
 	static const uint16 TriSawRectTable[0x100];
 	static const uint32 EGTable[16];	// Increment/decrement values for all A/D/R settings
 	static const uint8 EGDRShift[256]; // For exponential approximation of D/R
-	static const int16 SampleTab[16]; // Table for sampled voice
+	static const uint16 SampleTab[16]; // Table for sampled voice
 
 	DRVoice voice[3];				// Data for 3 voices
 
@@ -804,7 +804,7 @@ const uint8 DigitalRenderer::EGDRShift[256] = {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-const int16 DigitalRenderer::SampleTab[16] = {
+const uint16 DigitalRenderer::SampleTab[16] = {
 	0x8000, 0x9111, 0xa222, 0xb333, 0xc444, 0xd555, 0xe666, 0xf777,
 	0x0888, 0x1999, 0x2aaa, 0x3bbb, 0x4ccc, 0x5ddd, 0x6eee, 0x7fff,
 };

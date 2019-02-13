@@ -1313,7 +1313,7 @@ void ili9341_write_frame_C64(uint8_t* buffer, uint16_t* palette, char showKeyboa
     if (stopDisplay) return;
     odroid_display_lock_c64_display();
     register short x, y, r;
-
+    
     if (! showKeyboard)
         send_reset_drawing(0, 0, 320, 240);
     else 
@@ -1352,10 +1352,14 @@ void ili9341_write_frame_C64(uint8_t* buffer, uint16_t* palette, char showKeyboa
 
 void ili9341_write_frame_rectangleLE(short left, short top, short width, short height, uint16_t* buffer)
 {
+    
+    if (stopDisplay) return;
+    odroid_display_lock_c64_display();
+    
     short x, y;
 
-    if (left < 0 || top < 0) abort();
-    if (width < 1 || height < 1) abort();
+    if (left < 0 || top < 0) {abort();}
+    if (width < 1 || height < 1) {abort();}
 
     //xTaskToNotify = xTaskGetCurrentTaskHandle();
 
@@ -1395,6 +1399,9 @@ void ili9341_write_frame_rectangleLE(short left, short top, short width, short h
     }
 
     send_continue_wait();
+    
+    odroid_display_unlock_c64_display();
+            
 }
 
 void display_tasktonotify_set(int value)

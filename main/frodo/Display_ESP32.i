@@ -56,6 +56,7 @@ uint16_t VideoTaskCommand = 1;
 uint16_t* ili9341_palette;
 pixel* framebuffer[2];
 pixel* writeBuffer;
+
 pixel* sendBuffer;
 ///////////////////////////////
 int startCounter = 0;
@@ -204,9 +205,10 @@ void C64Display::videoTask(void* arg)
   {
     xQueuePeek(videoQueue, &param, portMAX_DELAY);
     VideoTaskCommand = 0;
-    //copy buffer to slower spi, so we have the fast DMA buffer agin for the next frame. It's fast enough for this thread. With WIFI I have not enough space for two DMA buffers.
-    // ( I wonder, why a relative slow wifi connections needs so much DMA buffer...)
-    memcpy(sendBuffer, writeBuffer, DISPLAY_X * DISPLAY_Y*sizeof(pixel));
+    
+    
+    
+  
     
     ili9341_write_frame_C64((uint8_t*)sendBuffer, ili9341_palette, showKeyboard, flipScreen);
     
@@ -292,18 +294,21 @@ C64Display::C64Display(C64 *the_c64) : TheC64(the_c64)
     ili9341_palette = (uint16*)heap_caps_malloc(256*sizeof(uint16), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
     
     for (int i = 0; i < 2; i++) {
-        
+
         if (i == 0) framebuffer[i] = (pixel*)heap_caps_malloc(DISPLAY_X * DISPLAY_Y*sizeof(pixel), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
-        if (i == 1)  framebuffer[i] = (pixel*)heap_caps_malloc(DISPLAY_X * DISPLAY_Y*sizeof(pixel), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        
-      
+        if (i == 1) framebuffer[i] = (pixel*)heap_caps_malloc(DISPLAY_X * DISPLAY_Y*sizeof(pixel),  MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
+
         if (!framebuffer[i]){ printf("malloc framebuffer%d failed!\n", i); return; }
         memset(framebuffer[i], 0, DISPLAY_X * DISPLAY_Y*sizeof(pixel));
         printf("malloc framebuffer%d OKAY!\n", i);
-    }
+    } 
+  
     
     writeBuffer = framebuffer[0];
     sendBuffer = framebuffer[1];
+  
+    
     
     cursor = (uint16_t*)heap_caps_malloc(CURSOR_MAX_WIDTH*CURSOR_MAX_HEIGHT*2, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
     if (!cursor){ printf("malloc cursor failed!\n"); return; }
@@ -311,9 +316,9 @@ C64Display::C64Display(C64 *the_c64) : TheC64(the_c64)
     cursorBackGround= (uint16_t*)heap_caps_malloc(CURSOR_MAX_WIDTH*CURSOR_MAX_HEIGHT*2, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
     if (!cursorBackGround){ printf("malloc cursorBackGround failed!\n"); return; }
     
-    //printf("bufmem: %p\n", bufmem);
+   
     videoQueue = xQueueCreate(1, sizeof(uint16_t*));
-    xTaskCreatePinnedToCore(&videoTask, "videoTask", 2048, NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(&videoTask, "videoTask", 2048, NULL,  2 , NULL, 1);
   
 
     keyPressed = 0;
@@ -504,6 +509,7 @@ button:‭11101111‬
  */
 void C64Display::fastMode(bool on)
 {
+    if (mp_isMultiplayer()) return;
     if (on) {
         ThePrefs.SkipFrames = 10;
         ThePrefs.LimitSpeed = false;
@@ -622,7 +628,9 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
         // spezial key, open vKeyboard
         //unpress all keys / joystick
         *joystick1 = 0xff;
+        *joystick2 = 0xff;
         for (int i = 0; i < 8; i++) {key_matrix[i] = 0xff;}
+        for (int i = 0; i < 8; i++) {rev_matrix[i] = 0xff;}
         showVirtualKeyboard();
         keyPress = 1;
         return;
@@ -630,7 +638,9 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
     if (! keyPress && showKeyboard && out_state.values[ODROID_INPUT_MENU]){
         //unpress all keys / joystick
         *joystick1 = 0xff;
+        *joystick2 = 0xff;
         for (int i = 0; i < 8; i++) {key_matrix[i] = 0xff;}
+        for (int i = 0; i < 8; i++) {rev_matrix[i] = 0xff;}
         
         hideVirtualKeyboard();
         keyPress = 1;
@@ -701,6 +711,7 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
             if (!out_state.values[ODROID_INPUT_SELECT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_SELECT);
         } else {
             // KEYMAPPING when nav is running
+            
             if (out_state.values[ODROID_INPUT_UP]) *joystick1 &= ~(1);
             if (out_state.values[ODROID_INPUT_DOWN]) *joystick1 &= ~(1 << 1);
             if (out_state.values[ODROID_INPUT_LEFT]) *joystick1 &= ~(1 << 2);
@@ -722,10 +733,12 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
             
         }
         if (out_state.values[ODROID_INPUT_MENU]) {
-            TheC64->TheSID->PauseSound();
-            odroidFrodoGUI_showMenu();
-            keyPress = 1;
-            TheC64->TheSID->ResumeSound();
+            if (! mp_isMultiplayer()){ 
+                TheC64->TheSID->PauseSound();
+                odroidFrodoGUI_showMenu();
+                keyPress = 1;
+                TheC64->TheSID->ResumeSound();
+            }
         }
         
 
@@ -743,7 +756,8 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
         
         
     } else {
-                
+        *joystick1 = 0xff;     
+             
         if (holdShift == 1) pressKey(key_matrix, rev_matrix, KEY_SHL);
         if (holdShift == 2){ unpressKey(key_matrix, rev_matrix, KEY_SHL); holdShift = 0; }
         
@@ -806,7 +820,10 @@ void C64Display::NewPrefs(Prefs *prefs)
 void C64Display::Update(void)
 {
     
-  
+    pixel* swapBuffer = sendBuffer;
+    sendBuffer = writeBuffer;
+    writeBuffer = swapBuffer;
+    
     xQueueSend(videoQueue, (void*)&VideoTaskCommand, portMAX_DELAY);
    // printf("display update\n");
     
@@ -895,7 +912,7 @@ bool C64Display::isNAVrunning() {
     for (int yp = 34; yp < 42; yp++) {
         for (int xp = 32; xp < 78; xp++) {
             for (int b = 0; b < 2; b++) {
-                pixel *p=sendBuffer + (xp+(yp*DISPLAY_X)); 
+                pixel *p=writeBuffer + (xp+(yp*DISPLAY_X)); 
                 char bv;
                 if (!b) bv = ili9341_palette[*p]; else bv = ili9341_palette[*p] >> 8;
                 x = crc >> 8 ^ bv;

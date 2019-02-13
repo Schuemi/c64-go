@@ -129,11 +129,7 @@ bool Frodo::load_rom_files(void)
 
 void frodo_main(void) {
     Frodo *the_app;
-
-    timeval tv;
-    gettimeofday(&tv, NULL);
-    srand(tv.tv_usec);
-
+ 
     printf("%s by Christian Bauer\n", VERSION_STRING);
     //if (!init_graphics())
     //        return 0;

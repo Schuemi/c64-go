@@ -17,6 +17,9 @@
 #include "Display.h"
 #include "Prefs.h"
 
+#include "esp_heap_caps.h"
+
+
 #if defined(__unix) && !defined(__svgalib__)
 #include "CmdPipe.h"
 #endif
@@ -28,7 +31,10 @@ bool IsFrodoSC = true;
 bool IsFrodoSC = false;
 #endif
 
-
+#ifdef VERBOSE_VIDEO
+int64_t mtimer = 0;
+char scounter = 0;
+#endif
 /*
  *  Constructor: Allocate objects and memory
  */
@@ -50,14 +56,29 @@ C64::C64()
 	TheDisplay = new C64Display(this);
 
 	// Allocate RAM/ROM memory
-	RAM = new uint8[0x10000];
+	/*RAM = new uint8[0x10000];
 	Basic = new uint8[0x2000];
 	Kernal = new uint8[0x2000];
 	Char = new uint8[0x1000];
 	Color = new uint8[0x0400];
 	RAM1541 = new uint8[0x0800];
-	ROM1541 = new uint8[0x4000];
-
+	ROM1541 = new uint8[0x4000];*/
+        RAM = (uint8_t*)heap_caps_malloc(0x10000, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+        Basic = (uint8_t*)heap_caps_malloc(0x2000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        Kernal = (uint8_t*)heap_caps_malloc(0x2000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        Char = (uint8_t*)heap_caps_malloc(0x1000, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+        Color = (uint8_t*)heap_caps_malloc(0x0400, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+        RAM1541 = (uint8_t*)heap_caps_malloc(0x0800, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        ROM1541 = (uint8_t*)heap_caps_malloc(0x4000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        printf("RAM: %p\n", RAM);
+        printf("Basic: %p\n", Basic);
+        printf("Kernal: %p\n", Kernal);
+        printf("Char: %p\n", Char);
+        printf("Color: %p\n", Color);
+        printf("RAM1541: %p\n", RAM1541);
+        printf("ROM1541: %p\n", ROM1541);
+        
+                
 	// Create the chips
 	TheCPU = new MOS6510(this, RAM, Basic, Kernal, Char, Color);
 
@@ -89,7 +110,7 @@ C64::C64()
 	// Open joystick drivers if required
 	open_close_joysticks(false, false, ThePrefs.Joystick1On, ThePrefs.Joystick2On);
 	joykey = 0xff;
-
+        joykey2 = 0xff;
 #ifdef FRODO_SC
 	CycleCounter = 0;
 #endif
@@ -118,13 +139,20 @@ C64::~C64()
 	delete TheCPU;
 	delete TheDisplay;
 
-	delete[] RAM;
+	/*delete[] RAM;
 	delete[] Basic;
 	delete[] Kernal;
 	delete[] Char;
 	delete[] Color;
 	delete[] RAM1541;
-	delete[] ROM1541;
+	delete[] ROM1541;*/
+        free(RAM);
+        free(Basic);
+        free(Kernal);
+        free(Char);
+        free(Color);
+        free(RAM1541);
+        free(ROM1541);
 
 	c64_dtor();
 }
@@ -151,7 +179,7 @@ void C64::Reset(void)
 
 void C64::NMI(void)
 {
-printf("NMI!\n");	
+
     TheCPU->AsyncNMI();
 }
 
