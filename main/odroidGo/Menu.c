@@ -126,16 +126,20 @@ static const struct {
    "Reset to NAV",
    "Audio output",
 #ifdef WITH_WLAN
-	#ifdef WITH_SAM
-	   "SAM",
-	#else
-	   "",
-	#endif
+   #ifdef WITH_SAM
+      "SAM",
+   #else 
+      "",
+   #endif
    "Start multiplayer server",
    "Start multiplayer client",
 #endif
 #ifdef WITH_SAM
-   "SAM",
+   #ifdef WITH_WLAN
+      "",
+   #else
+      "SAM",
+   #endif
 #else
    "",
 #endif
