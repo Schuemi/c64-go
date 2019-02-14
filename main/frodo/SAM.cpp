@@ -5,7 +5,7 @@
  */
 
 #if defined(ESP32)
-#include SAM_ESP32.i
+#include "SAM_ESP32.i"
 #else
 
 #include "sysdeps.h"
