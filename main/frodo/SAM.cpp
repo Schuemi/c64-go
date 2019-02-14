@@ -4,6 +4,10 @@
  *  Frodo (C) 1994-1997,2002 Christian Bauer
  */
 
+#if defined(ESP32)
+#include SAM_ESP32.i
+#else
+
 #include "sysdeps.h"
 
 #include "SAM.h"
@@ -2173,3 +2177,4 @@ static void save_data(void)
 		fclose(file);
 	}
 }
+#endif
