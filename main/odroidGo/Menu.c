@@ -20,7 +20,7 @@
 
 #include "utils.h"
 
-#include "minini.h"
+#include "minIni.h"
 #include "keyboard.h"
 
 #define MAX_OBJECTS 6
