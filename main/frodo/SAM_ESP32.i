@@ -4,10 +4,6 @@
  *  Frodo (C) 1994-1997,2002 Christian Bauer
  */
 
-#if defined(ESP32)
-#include "SAM_ESP32.i"
-#else
-
 #include "sysdeps.h"
 
 #include "SAM.h"
@@ -17,6 +13,12 @@
 #include "VIC.h"
 #include "SID.h"
 #include "CIA.h"
+
+#include <string.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/event_groups.h"
+#include "freertos/semphr.h"
 
 
 // Pointers to chips
@@ -32,6 +34,8 @@ static MOS6510State R64;
 static MOS6502State R1541;
 
 static bool access_1541;	// false: accessing C64, true: accessing 1541
+
+static bool stop_output = false;
 
 // Access to 6510/6502 address space
 static inline uint8 SAMReadByte(uint16 adr)
@@ -58,6 +62,9 @@ static FILE *fin, *fout, *ferr;
 #define INPUT_LENGTH 80
 static char input[INPUT_LENGTH];
 static char *in_ptr;
+
+static char input_command[INPUT_LENGTH];
+static char *input_command_ptr;
 
 static uint16 address, end_address;
 
@@ -304,136 +311,152 @@ void SAM(C64 *the_c64)
 	access_1541 = false;
 	address = R64.pc;
 
+//	printf("Hoi SAM!");
+
 	fprintf(ferr, "\n *** SAM - Simple Assembler and Monitor ***\n ***         Press 'h' for help         ***\n\n");
 	init_abort();
 	display_registers();
 
+
 	while (!done) {
-		if (access_1541)
-			fprintf(ferr, "1541> ");
-		else
-			fprintf(ferr, "C64> ");
-		fflush(ferr);
-		read_line();
-		while ((c = get_char()) == ' ') ;
-
-		switch (c) {
-			case 'a':		// Assemble
-				get_token();
-				assemble();
-				break;
-
-			case 'b':		// Binary dump
-				get_token();
-				binary_dump();
-				break;
-
-			case 'c':		// Compare
-				get_token();
-				compare();
-				break;
-
-			case 'd':		// Disassemble
-				get_token();
-				disassemble();
-				break;
-
-			case 'e':       // Interrupt vectors
-				int_vectors();
-				break;
-
-			case 'f':		// Fill
-				get_token();
-				fill();
-				break;
-
-			case 'h':		// Help
-				help();
-				break;
-
-			case 'i':		// ASCII dump
-				get_token();
-				ascii_dump();
-				break;
-
-			case 'k':		// Memory configuration
-				get_token();
-				mem_config();
-				break;
-
-			case 'l':		// Load data
-				get_token();
-				load_data();
-				break;
-
-			case 'm':		// Memory dump
-				get_token();
-				memory_dump();
-				break;
-
-			case 'n':		// Screen code dump
-				get_token();
-				screen_dump();
-				break;
-
-			case 'o':		// Redirect output
-				get_token();
-				redir_output();
-				break;
-
-			case 'p':		// Sprite dump
-				get_token();
-				sprite_dump();
-				break;
-
-			case 'r':		// Registers
-				get_reg_token();
-				registers();
-				break;
-
-			case 's':		// Save data
-				get_token();
-				save_data();
-				break;
-
-			case 't':		// Transfer
-				get_token();
-				transfer();
-				break;
-
-			case 'v':		// View machine state
-				view_state();
-				break;
-
-			case 'x':		// Exit
-				done = true;
-				break;
-
-			case ':':		// Change memory
-				get_token();
-				modify();
-				break;
-
-			case '1':		// Switch to 1541 mode
-				access_1541 = true;
-				break;
-
-			case '6':		// Switch to C64 mode
-				access_1541 = false;
-				break;
-
-			case '?':		// Compute expression
-				get_token();
-				print_expr();
-				break;
-
-			case '\n':		// Blank line
-				break;
-
-			default:		// Unknown command
-				error("Unknown command");
-				break;
+		if(stop_output == false) {
+			if (access_1541)
+				fprintf(ferr, "1541> ");
+			else
+				fprintf(ferr, "C64> ");
+			fflush(ferr);
 		}
+		read_line();
+		if(stop_output == false) {
+			while ((c = get_char()) == ' ') {
+				//vTaskDelay(1000 / portTICK_PERIOD_MS);
+			}
+			switch (c) {
+				case 'a':		// Assemble
+					get_token();
+					assemble();
+					break;
+
+				case 'b':		// Binary dump
+					get_token();
+					binary_dump();
+					break;
+
+				case 'c':		// Compare
+					get_token();
+					compare();
+					break;
+
+				case 'd':		// Disassemble
+					get_token();
+					disassemble();
+					break;
+
+				case 'e':       // Interrupt vectors
+					int_vectors();
+					break;
+
+				case 'f':		// Fill
+					get_token();
+					fill();
+					break;
+
+				case 'h':		// Help
+					help();
+					break;
+
+				case 'i':		// ASCII dump
+					get_token();
+					ascii_dump();
+					break;
+
+				case 'k':		// Memory configuration
+					get_token();
+					mem_config();
+					break;
+
+				case 'l':		// Load data
+					get_token();
+					load_data();
+					break;
+
+				case 'm':		// Memory dump
+					get_token();
+					memory_dump();
+					break;
+
+				case 'n':		// Screen code dump
+					get_token();
+					screen_dump();
+					break;
+
+				case 'o':		// Redirect output
+					get_token();
+					redir_output();
+					break;
+
+				case 'p':		// Sprite dump
+					get_token();
+					sprite_dump();
+					break;
+
+				case 'r':		// Registers
+					get_reg_token();
+					registers();
+					break;
+
+				case 's':		// Save data
+					get_token();
+					save_data();
+					break;
+
+				case 't':		// Transfer
+					get_token();
+					transfer();
+					break;
+
+				case 'v':		// View machine state
+					view_state();
+					break;
+
+				case 'x':		// Exit
+					done = true;
+					//vTaskDelete( NULL );
+					break;
+
+				case ':':		// Change memory
+					get_token();
+					modify();
+					break;
+
+				case '1':		// Switch to 1541 mode
+					access_1541 = true;
+					break;
+
+				case '6':		// Switch to C64 mode
+					access_1541 = false;
+					break;
+
+				case '?':		// Compute expression
+					get_token();
+					print_expr();
+					break;
+
+				case '\n':		// Blank line
+					//stop_output = true;
+					break;
+
+				default:		// Unknown command
+					error("Unknown command");
+					break;
+			}
+			memset(input_command, 0, sizeof(input_command));
+			//input_command_ptr = input_command;
+		}
+		vTaskDelay(10 / portTICK_PERIOD_MS);
+		//memset(input_command, 0, sizeof(input_command));
+		//put_back(' '); /////// STOP
+
 	}
 
 	exit_abort();
@@ -531,7 +554,41 @@ static void read_line(void)
 #ifdef __riscos__
 	OS_ReadLine(in_ptr = input, INPUT_LENGTH, 0, 255, 0);
 #else
-	fgets(in_ptr = input, INPUT_LENGTH, fin);
+
+	char* content_changed;
+	content_changed = fgets(in_ptr = input, INPUT_LENGTH, fin);
+	if(content_changed == NULL) {
+		stop_output = true;
+	} else {
+		input_command_ptr = input_command;
+		strcat(input_command_ptr,in_ptr);
+		fprintf(fout, in_ptr);
+		  size_t len = strlen(input_command);
+		  if (len > 0 && input_command[len-1] == '\n') {
+			  //Clear input_command next loop!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			  //>>>>>>>>> see after command switch statement:
+			  //memset(input_command, 0, sizeof(input_command));
+
+		      //in_ptr[--len] = '\0';
+			  //*in_ptr = 0;
+			  stop_output = false;
+		  } else {
+			  stop_output = true;
+		  }
+		//stop_output = false;
+	}
+
+
+/*
+	char c;
+
+	if ((c = get_char()) == '\n') {
+		//put_back(c);
+		stop_output = false;
+	} else {
+
+	}
+*/
 #endif
 }
 
@@ -542,7 +599,8 @@ static void read_line(void)
 
 static char get_char(void)
 {
-	return *in_ptr++;
+	//return *in_ptr++;
+	return *input_command_ptr++;
 }
 
 
@@ -552,7 +610,8 @@ static char get_char(void)
 
 static void put_back(char c)
 {
-	*(--in_ptr) = c;
+	//*(--in_ptr) = c;
+	*(--input_command_ptr) = c;
 }
 
 
@@ -1717,6 +1776,8 @@ static void modify(void)
 			SAMWriteByte(adr++, val);
 		else
 			return;
+	//fprintf(fout, "%02lx\n", SAMReadByte(adr++));
+	//return;
 }
 
 
@@ -2177,4 +2238,3 @@ static void save_data(void)
 		fclose(file);
 	}
 }
-#endif

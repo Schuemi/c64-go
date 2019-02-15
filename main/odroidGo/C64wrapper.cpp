@@ -16,6 +16,10 @@
 #include "SID.h"
 #include <freertos/task.h>
 
+#if defined(ESP32)
+#include "SAM.h"
+TaskHandle_t xHandle = NULL;
+#endif
 
 static C64* theC64 = NULL;
 
@@ -121,3 +125,32 @@ void C64_setFrameSkip( int frames ) {
 char C64_is1541emluation(  ) {
     return ThePrefs.Emul1541Proc;
 }
+
+#if defined(ESP32)
+void taskSAM( void * parameter )
+{
+
+	SAM(theC64);
+    vTaskDelete( NULL );
+
+}
+
+void C64_SAM() {
+	if (theC64 != NULL) {
+		//SAM(theC64);
+	    if( xHandle != NULL ) {
+	    	vTaskDelete( xHandle );
+	    	xHandle = NULL;
+	    }
+
+	    xTaskCreatePinnedToCore(
+	    					taskSAM,         /* Task function. */
+	    					"taskSAM",       /* String with name of task. */
+	    					4096,            /* Stack size in bytes. */
+	    					NULL,            /* Parameter passed as input of the task */
+	    					2,               /* Priority of the task. */
+	    					&xHandle,        /* Task handle. */
+							0);				 /* CPU Core */
+	}
+}
+#endif

@@ -20,7 +20,7 @@
 
 #include "utils.h"
 
-#include "minini.h"
+#include "minIni.h"
 #include "keyboard.h"
 
 #define MAX_OBJECTS 6
@@ -42,6 +42,9 @@
 #define WINDOW_TITLE_COLOR 0x6B4B
 typedef unsigned short pixelp;
 
+#if defined(ESP32)
+#define WITH_SAM 1
+#endif
 
 pixelp* pixelBuffer;
 
@@ -91,6 +94,10 @@ int selPosition = 0;
 #define MENU_ITEM_RESETNAV      8
 #define MENU_ITEM_AUDIO         9
 
+#if WITH_SAM
+    #define MENU_ITEM_SAM   10
+#endif
+
 #ifdef WITH_WLAN
     #define MENU_ITEM_MULTISERVER   11
     #define MENU_ITEM_MULTICLIENT   12
@@ -119,11 +126,23 @@ static const struct {
    "Reset to NAV",
    "Audio output",
 #ifdef WITH_WLAN
-   "",
+   #ifdef WITH_SAM
+      "SAM",
+   #else 
+      "",
+   #endif
    "Start multiplayer server",
    "Start multiplayer client",
 #endif
+#ifdef WITH_SAM
+   #ifdef WITH_WLAN
+      "",
+   #else
+      "SAM",
+   #endif
+#else
    "",
+#endif
    "About"
    
    
@@ -794,7 +813,11 @@ MENU_ACTION odroidFrodoGUI_showMenu() {
                    stopMenu = true;
                    break;
 #endif                   
-
+#ifdef WITH_SAM
+               case MENU_ITEM_SAM:
+            	   C64_SAM();
+               break;
+#endif
                case MENU_ITEM_ABOUT:
                   odroidFrodoGUI_msgBox("About", " \nFrodo\n\n by Christian Bauer\n\n ported by Jan P. Schuemann\n\nThanks to the ODROID-GO community\n\nHave fun!\n ", 1);
                break;
