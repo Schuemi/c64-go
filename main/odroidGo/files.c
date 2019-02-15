@@ -355,7 +355,7 @@ FILE* _fopen(const char *__restrict _name, const char *__restrict _type) {
     STOP_DISPLAY_FUNCTION();
     FILE* f = fopen(buffer, _type);
     RESUME_DISPLAY_FUNCTION();
-    printf("fopen: %s (%s) %p\n", buffer, _type, f);
+    //printf("fopen: %s (%s) %p\n", buffer, _type, f);
     if (f)openfiles++;
     //printf("open files: %d (%d)\n",openfiles,f);
     
