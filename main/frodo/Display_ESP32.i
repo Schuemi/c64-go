@@ -627,8 +627,9 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
     if (! keyPress && !showKeyboard && out_state.values[ODROID_INPUT_A] && out_state.values[ODROID_INPUT_MENU]){
         // spezial key, open vKeyboard
         //unpress all keys / joystick
-        *joystick1 = 0xff;
-        *joystick2 = 0xff;
+        if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_SERVER) *joystick1 = 0xff;
+        if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_CLIENT) *joystick2 = 0xff; 
+        
         for (int i = 0; i < 8; i++) {key_matrix[i] = 0xff;}
         for (int i = 0; i < 8; i++) {rev_matrix[i] = 0xff;}
         showVirtualKeyboard();
@@ -637,8 +638,9 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
     }
     if (! keyPress && showKeyboard && out_state.values[ODROID_INPUT_MENU]){
         //unpress all keys / joystick
-        *joystick1 = 0xff;
-        *joystick2 = 0xff;
+        if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_SERVER) *joystick1 = 0xff;
+        if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_CLIENT) *joystick2 = 0xff; 
+        
         for (int i = 0; i < 8; i++) {key_matrix[i] = 0xff;}
         for (int i = 0; i < 8; i++) {rev_matrix[i] = 0xff;}
         
@@ -756,8 +758,9 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
         
         
     } else {
-        *joystick1 = 0xff;     
-             
+        if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_SERVER) *joystick1 = 0xff;
+        if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_CLIENT) *joystick2 = 0xff; 
+        
         if (holdShift == 1) pressKey(key_matrix, rev_matrix, KEY_SHL);
         if (holdShift == 2){ unpressKey(key_matrix, rev_matrix, KEY_SHL); holdShift = 0; }
         
@@ -798,7 +801,7 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
             unpressKey(key_matrix, rev_matrix,  (char)(keyPressB & 0xff));  
             keyPressB = -1;
         }
-        
+       
              
     }
     
@@ -922,7 +925,7 @@ bool C64Display::isNAVrunning() {
             
         }
     }
-    printf("nav: %04x\n", crc);
+  
     if (crc == 0x6E2A) return true;
     return false;
 }
