@@ -51,7 +51,7 @@ void odroid_audio_volume_change()
 
 void odroid_audio_init(ODROID_AUDIO_SINK sink, int sample_rate)
 {
-    printf("%s: sink=%d, sample_rate=%d\n", __func__, sink, sample_rate);
+    //printf("%s: sink=%d, sample_rate=%d\n", __func__, sink, sample_rate);
 
     AudioSink = sink;
     audio_sample_rate = sample_rate;
