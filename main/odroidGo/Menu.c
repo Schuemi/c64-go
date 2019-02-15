@@ -816,6 +816,7 @@ MENU_ACTION odroidFrodoGUI_showMenu() {
 #ifdef WITH_SAM
                case MENU_ITEM_SAM:
             	   C64_SAM();
+                   odroidFrodoGUI_msgBox("SAM", "Simple Assembler \nand Monitor is started", 1);
                break;
 #endif
                case MENU_ITEM_ABOUT:
