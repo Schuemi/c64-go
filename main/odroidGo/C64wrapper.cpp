@@ -131,7 +131,9 @@ void taskSAM( void * parameter )
 {
 
 	SAM(theC64);
-    vTaskDelete( NULL );
+        xHandle = NULL;
+        vTaskDelete( NULL );
+   
 
 }
 
