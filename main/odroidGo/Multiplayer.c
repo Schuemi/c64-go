@@ -56,7 +56,7 @@
 typedef char byte;
 
 #define EXAMPLE_ESP_WIFI_MODE_AP   1 //CONFIG_ESP_WIFI_MODE_AP //TRUE:AP FALSE:STA
-#define MP_ESP_WIFI_SSID      "C64MultiplayerV0.03"
+#define MP_ESP_WIFI_SSID      "C64"__DATE__ " " __TIME__ // to avoid incompatibility, put the build datetime in the SSID
 #define MP_ESP_WIFI_PASS      ""
 #define MP_MAX_STA_CONN       1
 
@@ -452,14 +452,12 @@ void client_try_connect()
           mpState = MULTIPLAYER_CONNECTED_CLIENT;
           
           // sending random seed
-          struct timeval tv;
-          gettimeofday(&tv, NULL);
-          uint16_t seed = tv.tv_usec;
-          srand(seed);
-          char buffer[12];
-          snprintf(buffer, 12, "%u", seed);
+          uint32_t seed = esp_random() % 1000000;
+          char buffer[7];
+          snprintf(buffer, 7, "%06u", seed);
           printf("sending seed: %s\n", buffer);
-          NETSend(buffer, strlen(buffer) + 1);
+          NETSend(buffer, 7);
+          srand(atoi(buffer));
           
           printf("wait rom...\n");
           
@@ -472,7 +470,7 @@ void client_try_connect()
          
     }
     
-    odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+    //odroid_settings_WLAN_set(ODROID_WLAN_NONE);
 }
 
 
@@ -501,7 +499,7 @@ void server_wait_for_player()
         
         char buffer[1024];
         printf("wait message...\n");
-        int s = NETRecv(buffer+s, 6);
+        int s = NETRecv(buffer, 7);
         printf("!!!!!!!%d got message: %s\n", s, buffer);
         // setting random seed
         srand(atoi(buffer));
@@ -516,7 +514,7 @@ void server_wait_for_player()
         xTaskCreatePinnedToCore(&recievTask, "recievTask", 2048, NULL, 5, NULL, 1);        
         
         
-        odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+        //odroid_settings_WLAN_set(ODROID_WLAN_NONE);
     } else {
        // key pressed
         odroid_settings_WLAN_set(ODROID_WLAN_NONE);
