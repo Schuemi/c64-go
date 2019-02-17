@@ -18,6 +18,9 @@
 #include <sys/stat.h>
 #include <sys/dirent.h>
 
+#include "build_defs.h"
+
+
 #include "utils.h"
 
 #include "minIni.h"
@@ -662,7 +665,7 @@ MENU_ACTION odroidFrodoGUI_showMenu() {
        if (keyPressed == ODROID_INPUT_A) {
            const char* lastSelectedFile = NULL;
            printf("selected item: %d\n", currentSelectedItem);
-           
+           char *abouttext;
            switch(currentSelectedItem){
                ///////////// Load File ///////////////////
                case MENU_ITEM_LOADFILE:   
@@ -820,7 +823,10 @@ MENU_ACTION odroidFrodoGUI_showMenu() {
                break;
 #endif
                case MENU_ITEM_ABOUT:
-                  odroidFrodoGUI_msgBox("About", " \nFrodo\n\n by Christian Bauer\n\n ported by Jan P. Schuemann\n\nThanks to the ODROID-GO community\n\nHave fun!\n ", 1);
+                   abouttext = malloc(256);
+                   snprintf(abouttext, 256, " \nFrodo\n\n by Christian Bauer\n\n ported by Jan P. Schuemann\n\nThanks to the ODROID-GO community\n\nHave fun!\n\nVersion: %04d%02d%02d-%02d%02d%02d", BUILD_YEAR, BUILD_MONTH, BUILD_DAY, BUILD_HOUR, BUILD_MIN, BUILD_SEC);
+                  odroidFrodoGUI_msgBox("About", abouttext, 1);
+                  free(abouttext);
                break;
            };
        }
