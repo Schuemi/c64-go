@@ -91,7 +91,7 @@ void app_main(void) {
         if (wlan == ODROID_WLAN_AP) server_init();
         if (wlan == ODROID_WLAN_STA) client_init();
         if (wlan == ODROID_WLAN_NONE) {
-            // we are not in WLAN, so we can have a better random
+            // we are not in WLAN, so the esp random generator (esp_random()) is also not available
             struct timeval tv;
             gettimeofday(&tv, NULL);
             srand(tv.tv_usec);
