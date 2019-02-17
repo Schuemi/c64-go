@@ -94,7 +94,7 @@ char gotRemoteData = 0;
 char tcpSend = 0;
 char oneTickBehind = 0;
 
-char playFileName[1024];
+char *playFileName;
 void copyFile(const char* fileName, const char* destination);
 char sendFile(const char* fileName);
 char recievFile(const char* fileName, char toMemory, char*memory);
@@ -384,7 +384,7 @@ void mp_init(char client)
 {
     mpState = MULTIPLAYER_INIT;
     server_state = MP_NO_CONNECTION;
-    
+    playFileName = (char*)malloc(1024);
     if (client) {
         wifi_init_sta();
     } else {
@@ -464,13 +464,14 @@ void client_try_connect()
           int g = recievDataBlob(playFileName, 1024);
           printf("filename: %s\n", playFileName);
         
+          usleep(10000);
           xTaskCreatePinnedToCore(&sendTask, "sendTask", 2048, NULL,  5, NULL, 1);
           xTaskCreatePinnedToCore(&recievTask, "recievTask", 2048, NULL,  5, NULL, 1);
 
          
     }
     
-    //odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+    odroid_settings_WLAN_set(ODROID_WLAN_NONE);
 }
 
 
@@ -493,11 +494,11 @@ void server_wait_for_player()
          if(bind(SSocket,(struct sockaddr *)&Addr,sizeof(Addr))<0)
         { close(SSocket);return; }
 
-       
+      
         
         mpState = MULTIPLAYER_CONNECTED_SERVER;
         
-        char buffer[1024];
+        char buffer[7];
         printf("wait message...\n");
         int s = NETRecv(buffer, 7);
         printf("!!!!!!!%d got message: %s\n", s, buffer);
@@ -508,13 +509,13 @@ void server_wait_for_player()
         sendDataBlob(rom, strlen(rom) + 1);
         memcpy(playFileName, rom, strlen(rom) + 1);
         free(rom);
-        
+        usleep(10000);
         
         xTaskCreatePinnedToCore(&sendTask, "sendTask", 2048, NULL, 5, NULL, 1);
         xTaskCreatePinnedToCore(&recievTask, "recievTask", 2048, NULL, 5, NULL, 1);        
         
         
-        //odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+        odroid_settings_WLAN_set(ODROID_WLAN_NONE);
     } else {
        // key pressed
         odroid_settings_WLAN_set(ODROID_WLAN_NONE);
