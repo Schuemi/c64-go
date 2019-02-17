@@ -101,6 +101,13 @@ How does this work?
 - The server tells the client what game they whant to play
 - after starting the game on both devices they send RAW TCP packts with joysick and keyboard data to each other. Both devices have to know what the other is doing in every vblank.
 
+# SAM (Simple Assembler and Monitor) (Thanks [fogsag](https://github.com/fogsag) !)
+
+Frodo has a built-in machine language monitor that can be activated by selecting the menu item "SAM". It provides full access to the memory and hardware of the emulated C64 and 1541. SAM is controlled by a command-based interface, you have to connect your Odroid-Go to the PC to use it.
+
+To learn more about SAM, please read the Frodo documentation.
+
+
 # Next:
 
 The next things I'm planning are:
