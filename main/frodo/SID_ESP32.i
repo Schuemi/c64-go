@@ -153,10 +153,9 @@ void DigitalRenderer::Pause(void) {
 }
 void DigitalRenderer::Resume(void) {
     if (noSound) return;
-    audioPause=0;
     odroid_audio_init(sink, 44100);
     odroid_audio_volume_set((odroid_volume_level)volLevel);
-    
+    audioPause=0;
 }   
 
 DigitalRenderer::~DigitalRenderer() {
