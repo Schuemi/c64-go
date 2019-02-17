@@ -162,7 +162,7 @@ void C64::VBlank(bool draw_frame)
          ||  ! mp_isMultiplayer()  
 #endif     
                 ) {
-         
+            if (mp_isMultiplayer()) for(int i = 0; i < 8 ; i++) {TheCIA1->KeyMatrix[i] = 0xff; TheCIA1->RevMatrix[i] = 0xff;}
             TheDisplay->PollKeyboard(TheCIA1->KeyMatrix, TheCIA1->RevMatrix, &joykey, &joykey2);
             #ifdef WITH_WLAN	
                    exchangeNetworkState(TheCIA1->KeyMatrix, TheCIA1->RevMatrix, &joykey, &joykey2);
