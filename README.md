@@ -3,7 +3,8 @@ Frodo Port to ODROID-GO
 
 Here is the precompiled Firmware file here: https://github.com/Schuemi/c64-go/releases
 
-![PlantX](https://github.com/Schuemi/c64-go/blob/master/res/IMG_20181006_102247.jpg)
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/cI9vwX0W7qg/0.jpg)](http://www.youtube.com/watch?v=cI9vwX0W7qg "Odroid Go C64 Multiplayer")
+
 
 
 Please create these directories on your SD Card manually:
