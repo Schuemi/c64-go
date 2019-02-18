@@ -1,3 +1,4 @@
+#ifndef FRODO_SC
 /*
  *  CIA.cpp - 6526 emulation
  *
@@ -554,3 +555,4 @@ void MOS6526_2::TriggerInterrupt(int bit)
 		the_cpu->TriggerNMI();
 	}
 }
+#endif
