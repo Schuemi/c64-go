@@ -19,6 +19,8 @@
 
 #include "esp_heap_caps.h"
 
+#include "UserPort_4Player.h"
+
 
 #if defined(__unix) && !defined(__svgalib__)
 #include "CmdPipe.h"
@@ -91,7 +93,10 @@ C64::C64()
 	TheCIA2 = TheCPU->TheCIA2 = TheCPU1541->TheCIA2 = new MOS6526_2(TheCPU, TheVIC, TheCPU1541);
 	TheIEC = TheCPU->TheIEC = new IEC(TheDisplay);
 	TheREU = TheCPU->TheREU = new REU(TheCPU);
-
+        
+        // insert 4 player interface
+        TheCIA2->insertUserPortCard(new UserPort_4Player());
+        
 	// Initialize RAM with powerup pattern
 	for (i=0, p=RAM; i<512; i++) {
 		for (j=0; j<64; j++)

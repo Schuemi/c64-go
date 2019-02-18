@@ -8,7 +8,7 @@
 #define _CIA_H
 
 #include "Prefs.h"
-
+#include "UserPortInterface.h"
 
 class MOS6510;
 class MOS6502_1541;
@@ -95,12 +95,13 @@ public:
 	uint8 ReadRegister(uint16 adr);
 	void WriteRegister(uint16 adr, uint8 byte);
 	virtual void TriggerInterrupt(int bit);
-
+        void insertUserPortCard(UserPortInterface* c);
 	uint8 IECLines;		// State of IEC lines (bit 7 - DATA, bit 6 - CLK, bit 4 - ATN)
 
 private:
 	MOS6569 *the_vic;
 	MOS6502_1541 *the_cpu_1541;
+        UserPortInterface* userPort;
 };
 
 
