@@ -15,6 +15,7 @@
 class UserPortInterface {
 public:
     enum USER_PORT_INTERFACE_TYPE {
+        TYPE_NONE = 0,
         TYPE_4PLAYER_PROTOVISION
     };
     virtual unsigned char ReadPB() = 0;

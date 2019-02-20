@@ -11,6 +11,8 @@
 #include "odroid_display.h"
 
 #include "LibOdroidGo.h"
+#include "UserPort_4Player.h"
+#include "Prefs.h"
 static struct timeval tv_start;
 
 #ifndef HAVE_USLEEP
@@ -133,6 +135,9 @@ void C64::Run(void)
 	PatchKernal(ThePrefs.FastReset, ThePrefs.Emul1541Proc);
 
 	quit_thyself = false;
+        
+        insertUserPortCartridge(UserPortInterface::TYPE_4PLAYER_PROTOVISION);
+        
 	thread_func();
 }
 
@@ -163,6 +168,25 @@ void C64::VBlank(bool draw_frame)
 #endif     
                 ) {
             if (mp_isMultiplayer()) for(int i = 0; i < 8 ; i++) {TheCIA1->KeyMatrix[i] = 0xff; TheCIA1->RevMatrix[i] = 0xff;}
+            
+            /* only to test the 4 Joysticks
+            if (ThePrefs.Emul1541Proc && TheUserPortCardridge != NULL && TheUserPortCardridge->GetType() == UserPortInterface::TYPE_4PLAYER_PROTOVISION) {
+                uint8_t joykey3 = 0xff;
+                uint8_t joykey4 = 0xff;
+                TheDisplay->PollKeyboard(TheCIA1->KeyMatrix, TheCIA1->RevMatrix, &joykey3, &joykey4);
+                if (ThePrefs.JoystickSwap){
+                    ((UserPort_4Player*)TheUserPortCardridge)->setJoy3(joykey4);
+                    ((UserPort_4Player*)TheUserPortCardridge)->setJoy4(joykey3);
+                } else {
+                    ((UserPort_4Player*)TheUserPortCardridge)->setJoy3(joykey3);
+                    ((UserPort_4Player*)TheUserPortCardridge)->setJoy4(joykey4);
+                }
+               
+            } else {
+                TheDisplay->PollKeyboard(TheCIA1->KeyMatrix, TheCIA1->RevMatrix, &joykey, &joykey2);
+            }*/
+            
+            
             TheDisplay->PollKeyboard(TheCIA1->KeyMatrix, TheCIA1->RevMatrix, &joykey, &joykey2);
             #ifdef WITH_WLAN	
                    exchangeNetworkState(TheCIA1->KeyMatrix, TheCIA1->RevMatrix, &joykey, &joykey2);

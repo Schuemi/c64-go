@@ -50,7 +50,7 @@ C64::C64()
 	thread_running = false;
 	quit_thyself = false;
 	have_a_break = false;
-
+        TheUserPortCardridge = NULL;
 	// System-dependent things
 	c64_ctor1();
 
@@ -94,8 +94,7 @@ C64::C64()
 	TheIEC = TheCPU->TheIEC = new IEC(TheDisplay);
 	TheREU = TheCPU->TheREU = new REU(TheCPU);
         
-        // insert 4 player interface
-        TheCIA2->insertUserPortCard(new UserPort_4Player());
+        
         
 	// Initialize RAM with powerup pattern
 	for (i=0, p=RAM; i<512; i++) {
@@ -161,7 +160,19 @@ C64::~C64()
 
 	c64_dtor();
 }
-
+/*
+ * Insert User Port Cartridge
+ */
+bool C64::insertUserPortCartridge(int type) {
+    if (type == UserPortInterface::TYPE_4PLAYER_PROTOVISION){
+        // insert 4 player interface
+        TheUserPortCardridge = new UserPort_4Player();
+        TheCIA2->insertUserPortCard(TheUserPortCardridge);
+        return true;
+    }
+    
+    return false;
+}
 
 /*
  *  Reset C64

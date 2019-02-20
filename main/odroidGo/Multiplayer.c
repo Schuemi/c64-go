@@ -66,7 +66,7 @@ typedef char byte;
 static EventGroupHandle_t wifi_event_group;
 
 /*server and client socket*/
-int LSocket,SSocket;
+int LSocket,SSocket[3];
 struct sockaddr_in Addr;
 socklen_t AddrLength;
 fd_set FDs;
@@ -96,12 +96,12 @@ char oneTickBehind = 0;
 
 char *playFileName;
 void copyFile(const char* fileName, const char* destination);
-char sendFile(const char* fileName);
-char recievFile(const char* fileName, char toMemory, char*memory);
-void sendDataBlob(const char* data, uint16_t size);
-uint16_t recievDataBlob(char* data, uint16_t maxSize);
-int NETSend(const char *Out,int N);
-int NETRecv(char *In,int N);
+char sendFile(int socket, const char* fileName);
+char recievFile(int socket, const char* fileName, char toMemory, char*memory);
+void sendDataBlob(int socket, const char* data, uint16_t size);
+uint16_t recievDataBlob(int socket, char* data, uint16_t maxSize);
+int NETSend(int socket, const char *Out,int N);
+int NETRecv(int socket, char *In,int N);
 
 char keyMatrixChanged = 0;
 SemaphoreHandle_t netMutex = NULL;
@@ -148,6 +148,12 @@ void sendTask(void* arg)
   char sendBuf[22];
   memset(sendBuf, 0, 22);
   char send = 0;
+  int socket;
+  if (mpState == MULTIPLAYER_CONNECTED_SERVER) {
+      socket = SSocket[0];
+  } else {
+      socket = LSocket;
+  }
   while(!stopNet)
   {
       
@@ -172,15 +178,15 @@ void sendTask(void* arg)
           if (! send) {
             unsigned short crc = crc16(sendBuf, 4);
             memcpy(sendBuf + 4, &crc, 2);
-            NETSend(sendBuf,6);
+            NETSend(socket, sendBuf,6);
             // printf("send: "); for(int i = 0; i < 6; i++) printf("%02x, ", sendBuf[i]); printf("\n");
              
           }
           else{
             unsigned short crc = crc16(sendBuf, 20);
             memcpy(sendBuf + 20, &crc, 2);
-            NETSend(sendBuf,6);
-            NETSend(sendBuf + 6,16);
+            NETSend(socket, sendBuf,6);
+            NETSend(socket, sendBuf + 6,16);
           //  printf("send: "); for(int i = 0; i < 22; i++) printf("%02x, ", sendBuf[i]); printf("\n");
            
           } 
@@ -205,12 +211,18 @@ void sendTask(void* arg)
 void recievTask(void* arg)
 {
 
-
+  int socket;
+  if (mpState == MULTIPLAYER_CONNECTED_SERVER) {
+      socket = SSocket[0];
+  } else {
+      socket = LSocket;
+  }
+  
   char recievBuf[22];
   while(!stopNet)
   {
     recievBuf[0] = 0x10;
-    if(NETRecv(recievBuf,6)==6 && (recievBuf[0] == 0x00 || recievBuf[0] == 0x01)) {
+    if(NETRecv(socket, recievBuf,6)==6 && (recievBuf[0] == 0x00 || recievBuf[0] == 0x01)) {
         // check crc
         char crcOkay = 0;
         
@@ -222,7 +234,7 @@ void recievTask(void* arg)
            
         }
         if (recievBuf[0] == 0x00) {
-            NETRecv(recievBuf+6,16);
+            NETRecv(socket, recievBuf+6,16);
            // printf("reciev(%d, %d): ", currentRemoteTickNumber, gotRemoteData);for(int i = 0; i < 22; i++) printf("%02x, ", recievBuf[i]); printf("\n");
             unsigned short crc = crc16(recievBuf, 20);
             unsigned short* rcrc = (unsigned short*)(recievBuf+20);
@@ -253,7 +265,7 @@ void recievTask(void* arg)
         unlockMutex(2);
     } else {
         printf("################!\n");
-        if (recievBuf[0] != 0x00 || recievBuf[0] != 0x01) NETRecv(recievBuf,1);
+        if (recievBuf[0] != 0x00 || recievBuf[0] != 0x01) NETRecv(socket, recievBuf,1);
     }
    
       
@@ -443,7 +455,7 @@ void client_try_connect()
         /* Create a socket */
 
      memcpy(&PeerAddr,&Addr,sizeof(PeerAddr));
-     if((SSocket=socket(AF_INET,SOCK_DGRAM,IPPROTO_RAW))<0) return;     
+     if((LSocket=socket(AF_INET,SOCK_DGRAM,IPPROTO_RAW))<0) return;     
 
        
         
@@ -456,12 +468,12 @@ void client_try_connect()
           char buffer[7];
           snprintf(buffer, 7, "%06u", seed);
           printf("sending seed: %s\n", buffer);
-          NETSend(buffer, 7);
+          NETSend(LSocket, buffer, 7);
           srand(atoi(buffer));
           
           printf("wait rom...\n");
           
-          int g = recievDataBlob(playFileName, 1024);
+          int g = recievDataBlob(LSocket, playFileName, 1024);
           printf("filename: %s\n", playFileName);
         
           usleep(10000);
@@ -481,47 +493,54 @@ void server_wait_for_player()
     odroidFrodoGUI_msgBox("Multiplayer", "Waiting for player...\n\nPress a key to stop waiting", 0);
     
    playFileName[0] = 0;
-   
-    if (waitKeyOrStatusChange() == -1 && server_state == MP_CLIENT_IS_CONNECTING) {
-        odroidFrodoGUI_msgBox("Multiplayer", "Player is connecting...", 0);
-        
-        memset(&Addr,0,sizeof(Addr));
-        Addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        Addr.sin_family      = AF_INET;
-        Addr.sin_port        = htons(1234);
-        memcpy(&PeerAddr,&Addr,sizeof(PeerAddr));
-        if((SSocket=socket(AF_INET,SOCK_DGRAM,IPPROTO_RAW))<0) return;
-         if(bind(SSocket,(struct sockaddr *)&Addr,sizeof(Addr))<0)
-        { close(SSocket);return; }
+   int playerNum = 0;
+   while(playerNum < 1){
+       
+        if (waitKeyOrStatusChange() == -1 && server_state == MP_CLIENT_IS_CONNECTING) {
+             odroidFrodoGUI_msgBox("Multiplayer", "Player is connecting...", 0);
 
-      
-        
-        mpState = MULTIPLAYER_CONNECTED_SERVER;
-        
-        char buffer[7];
-        printf("wait message...\n");
-        int s = NETRecv(buffer, 7);
-        printf("!!!!!!!%d got message: %s\n", s, buffer);
-        // setting random seed
-        srand(atoi(buffer));
-        
-        char* rom = odroid_settings_RomFilePath_get();
-        sendDataBlob(rom, strlen(rom) + 1);
-        memcpy(playFileName, rom, strlen(rom) + 1);
-        free(rom);
-        usleep(10000);
-        
-        xTaskCreatePinnedToCore(&sendTask, "sendTask", 2048, NULL, 5, NULL, 1);
-        xTaskCreatePinnedToCore(&recievTask, "recievTask", 2048, NULL, 5, NULL, 1);        
-        
-        
-        odroid_settings_WLAN_set(ODROID_WLAN_NONE);
-    } else {
-       // key pressed
-        odroid_settings_WLAN_set(ODROID_WLAN_NONE);
-        esp_restart();
-    
-    }
+             memset(&Addr,0,sizeof(Addr));
+             Addr.sin_addr.s_addr = htonl(INADDR_ANY);
+             Addr.sin_family      = AF_INET;
+             Addr.sin_port        = htons(1234);
+             memcpy(&PeerAddr,&Addr,sizeof(PeerAddr));
+             if((SSocket[playerNum]=socket(AF_INET,SOCK_DGRAM,IPPROTO_RAW))<0) return;
+              if(bind(SSocket[playerNum],(struct sockaddr *)&Addr,sizeof(Addr))<0)
+             { close(SSocket[playerNum]);return; }
+
+
+
+             mpState = MULTIPLAYER_CONNECTED_SERVER;
+
+             char buffer[7];
+             printf("wait message...\n");
+             int s = NETRecv(SSocket[playerNum], buffer, 7);
+             printf("!!!!!!!%d got message: %s\n", s, buffer);
+             // setting random seed
+             srand(atoi(buffer));
+
+             char* rom = odroid_settings_RomFilePath_get();
+             sendDataBlob(SSocket[playerNum], rom, strlen(rom) + 1);
+             memcpy(playFileName, rom, strlen(rom) + 1);
+             free(rom);
+             usleep(10000);
+
+             xTaskCreatePinnedToCore(&sendTask, "sendTask", 2048, NULL, 5, NULL, 1);
+             xTaskCreatePinnedToCore(&recievTask, "recievTask", 2048, NULL, 5, NULL, 1);        
+
+
+             odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+         } else {
+            // key pressed
+            if (playerNum == 0) { 
+                odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+                esp_restart();
+            } else return;
+
+         }
+        odroidFrodoGUI_msgBox("Multiplayer", "Waiting for next player...\n\nPress a key to stop waiting", 0);
+        playerNum++;
+   }
     
     
 }
@@ -530,7 +549,7 @@ void server_wait_for_player()
 /** NETSend() ************************************************/
 /** Send N bytes. Returns number of bytes sent or 0.        **/
 /*************************************************************/
-int NETSend(const char *Out,int N)
+int NETSend(int socket, const char *Out,int N)
 {
   int J,I;
 
@@ -540,7 +559,7 @@ int NETSend(const char *Out,int N)
   for(I=J=N;(J>=0)&&I;)
   {
 
-    J = sendto(SSocket,Out,I,0,(struct sockaddr *)&PeerAddr,sizeof(PeerAddr));
+    J = sendto(socket,Out,I,0,(struct sockaddr *)&PeerAddr,sizeof(PeerAddr));
     
     if(J>0) { Out+=J;I-=J; }
   }
@@ -552,7 +571,7 @@ int NETSend(const char *Out,int N)
 /** NETRecv() ************************************************/
 /** Receive N bytes. Returns number of bytes received or 0. **/
 /*************************************************************/
-int NETRecv(char *In,int N)
+int NETRecv(int socket, char *In,int N)
 {
   int J,I;
   socklen_t AddrLen = sizeof(PeerAddr);
@@ -565,7 +584,7 @@ int NETRecv(char *In,int N)
   for(I=J=N;(J>=0)&&I;)
   {
 
-    J = recvfrom(SSocket,In,I,0,(struct sockaddr *)&PeerAddr,&AddrLen);
+    J = recvfrom(socket,In,I,0,(struct sockaddr *)&PeerAddr,&AddrLen);
 
     if(J>0) { In+=J;I-=J; }
   }
@@ -600,7 +619,7 @@ void copyFile(const char* fileName, const char* destination) {
 
 /////// sendFile and recievFile are for future use, not working yet
 
-char sendFile(const char* fileName) {
+char sendFile(int socket, const char* fileName) {
     char* buffer;
     buffer = (char*)malloc(FILEBUFFER_SIZE);
     FILE* f = _fopen(fileName, "rb");
@@ -609,7 +628,7 @@ char sendFile(const char* fileName) {
     size_t size=_ftell(f);
     _rewind(f);
     
-    NETSend((char*)&size, 4);
+    NETSend(socket, (char*)&size, 4);
    
     uint16_t parnum = 0;
     uint16_t parts = (size / FILEBUFFER_SIZE) + 1;
@@ -620,8 +639,8 @@ char sendFile(const char* fileName) {
         
         uint16_t crc = crc16(buffer, s+2);
         memcpy(buffer + s + 2, (char*)&crc , 2);
-        sendDataBlob(buffer, s + 4);
-        NETRecv((char*)&parnum, 2);
+        sendDataBlob(socket, buffer, s + 4);
+        NETRecv(socket, (char*)&parnum, 2);
         
     }
     _fclose(f);
@@ -632,7 +651,7 @@ char sendFile(const char* fileName) {
 }
 
 
-char recievFile(const char* fileName, char toMemory, char*memory) {
+char recievFile(int socket, const char* fileName, char toMemory, char*memory) {
     char* buffer;
     char* memPosition;
     buffer = (char*)malloc(FILEBUFFER_SIZE);
@@ -643,25 +662,25 @@ char recievFile(const char* fileName, char toMemory, char*memory) {
     }
     size_t size = 0;
     size_t recievedSize = 0;
-    NETRecv((char*)&size, 4);
+    NETRecv(socket, (char*)&size, 4);
     uint16_t gettingPartnum = 0;
     uint16_t partnum = 0;
     uint16_t parts = (size / FILEBUFFER_SIZE) + 1;
     if (toMemory) memPosition = memory = malloc(size);
     
     while(gettingPartnum < parts) {
-        uint16_t r = recievDataBlob(buffer, FILEBUFFER_SIZE);
+        uint16_t r = recievDataBlob(socket, buffer, FILEBUFFER_SIZE);
         memcpy((char*)&partnum, buffer, 2);
-        if (r < 4)  { NETSend((char*)&gettingPartnum, 2); continue;} 
-        if (partnum != gettingPartnum) { NETSend((char*)&gettingPartnum, 2); continue;} // what part should this be?
+        if (r < 4)  { NETSend(socket, (char*)&gettingPartnum, 2); continue;} 
+        if (partnum != gettingPartnum) { NETSend(socket, (char*)&gettingPartnum, 2); continue;} // what part should this be?
         
         uint16_t crc = crc16(buffer, r-2);
         uint16_t recrc;
         memcpy((char*)&recrc, buffer + (r - 2), 2);
-        if (crc != recrc) { NETSend((char*)&gettingPartnum, 2); continue;} 
+        if (crc != recrc) { NETSend(socket, (char*)&gettingPartnum, 2); continue;} 
         
         gettingPartnum++;
-        NETSend((char*)&gettingPartnum, 2);
+        NETSend(socket, (char*)&gettingPartnum, 2);
         
         recievedSize += r;
         if (toMemory){
@@ -681,20 +700,20 @@ char recievFile(const char* fileName, char toMemory, char*memory) {
     return 1;
 }
 
-void sendDataBlob(const char* data, uint16_t size) {
-    NETSend((char*)&size, 2);
-    NETSend(data, size);
+void sendDataBlob(int socket, const char* data, uint16_t size) {
+    NETSend(socket, (char*)&size, 2);
+    NETSend(socket, data, size);
 
 }
-uint16_t recievDataBlob(char* data, uint16_t maxSize) {
+uint16_t recievDataBlob(int socket, char* data, uint16_t maxSize) {
     
     uint16_t datalength;
-    NETRecv((char*)&datalength, 2);
+    NETRecv(socket, (char*)&datalength, 2);
     //printf("Got datalength: %d\n", datalength);
     uint16_t tooMuch = 0;
     
     if (datalength > maxSize) {tooMuch = datalength - maxSize; datalength = maxSize;}
-    uint16_t r = NETRecv(data, datalength);
+    uint16_t r = NETRecv(socket, data, datalength);
     //printf("got data; %d\n", r );
    
     return r;

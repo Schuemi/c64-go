@@ -31,10 +31,10 @@ unsigned char UserPort_4Player::ReadPA(){
 }
 void UserPort_4Player::WritePB(unsigned char byte){
     if (byte & 0x80){
-        // switch port 3
+        // switch to port 3
         activeJoystick = &joystick3;
     } else {
-        // switch port 4
+        // switch to port 4
         activeJoystick = &joystick4;
         
     }
@@ -48,7 +48,7 @@ void UserPort_4Player::setJoy3(unsigned char j){
 }
 void UserPort_4Player::setJoy4(unsigned char j){
     // the fire button is on bit 5 (not 4) on this joy.
-    if (j & 0x10) j |= 0x20;
+    if (!(j & 0x10)) j &= 0xDF;
     joystick4 = j;
 } 
 UserPortInterface::USER_PORT_INTERFACE_TYPE UserPort_4Player::GetType() {

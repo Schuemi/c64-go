@@ -225,14 +225,14 @@ uint8 MOS6526_1::ReadRegister(uint16 adr)
 uint8 MOS6526_2::ReadRegister(uint16 adr)
 {
     if (userPort) {
-        if (adr == 0x00) { pra &=0xfb; prb |= userPort->ReadPA() & 0x4; }
-        if (adr == 0x01) prb = userPort->ReadPB();
+        if (adr == 0x00) { pra &=0xfb; pra |= userPort->ReadPA() & 0x4; }
+        if (adr == 0x01) return userPort->ReadPB();
     }	
     switch (adr) {
 		case 0x00:
 			return (pra | ~ddra) & 0x3f
 				| IECLines & the_cpu_1541->IECLines;
-		case 0x01: return prb | ~ddrb;
+		case 0x01:return prb | ~ddrb;
 		case 0x02: return ddra;
 		case 0x03: return ddrb;
 		case 0x04: return ta;
