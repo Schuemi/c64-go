@@ -137,6 +137,7 @@ void C64::Run(void)
 	quit_thyself = false;
         
         insertUserPortCartridge(UserPortInterface::TYPE_4PLAYER_PROTOVISION);
+        c64_started();
         
 	thread_func();
 }
