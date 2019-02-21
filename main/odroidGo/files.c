@@ -210,7 +210,6 @@ size_t _fread(_PTR __restrict p, size_t _size, size_t _n, FILE *__restrict f) {
 size_t _fwrite(const _PTR __restrict p , size_t _size, size_t _n, FILE * f) {
     // i had problems with fwrite (sd write errors, if the datasize is > 0x100) 
     
-    printf("fwrite !(%d, %d)\n", _size, _n);
     size_t size = _size*_n;
     int written = 0;
     for (int i = 0; i < size; i+=0x100) {
@@ -218,7 +217,6 @@ size_t _fwrite(const _PTR __restrict p , size_t _size, size_t _n, FILE * f) {
         if (i + 0x100 > size) toWrite = size%0x100;
         STOP_DISPLAY_FUNCTION();
         written +=fwrite(p+i, toWrite, 1, f);
-        printf("written:%d\n", written);
         RESUME_DISPLAY_FUNCTION();
     }
     if (written > 0) {
