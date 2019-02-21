@@ -59,7 +59,7 @@ pixel* writeBuffer;
 
 pixel* sendBuffer;
 ///////////////////////////////
-int startCounter = 0;
+
 ///////// virtual keyboard stuff
 #define CURSOR_MAX_WIDTH (22)
 #define CURSOR_MAX_HEIGHT (22)
@@ -612,11 +612,7 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
     
     odroid_gamepad_state out_state;
     odroid_input_gamepad_read(&out_state);
-    if (startCounter < 5000)   startCounter++;
-    if (startCounter == 1) {
-        c64_started();
-    }
-    
+   
     if (writeKeys) {
         writeSomeKeys(key_matrix, rev_matrix);
         return;

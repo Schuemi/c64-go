@@ -133,6 +133,9 @@ void C64::Run(void)
 	PatchKernal(ThePrefs.FastReset, ThePrefs.Emul1541Proc);
 
 	quit_thyself = false;
+        
+        c64_started();
+        
 	thread_func();
 }
 
