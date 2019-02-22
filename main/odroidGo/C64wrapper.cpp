@@ -68,14 +68,20 @@ void C64_sendKeys(const char* keys) {
 }
 bool C64_InsertDisc(int deviceNumber, const char* filename) {
     if (deviceNumber < 8) return false;
+    if (strstr(filename, ".t64") != NULL || strstr(filename, ".T64") != NULL) {
+        printf("insert Tape\n");
+        ThePrefs.DriveType[deviceNumber-8] = DRVTYPE_T64;
+    }  else {
+        printf("insert Disc\n");
+        ThePrefs.DriveType[deviceNumber-8] = DRVTYPE_D64;
+    }
+    
     if (! theC64){
         // c64 is not running yet, we can change the prefs without newPrefs
-        ThePrefs.DriveType[deviceNumber-8] = DRVTYPE_D64;
         strncpy(ThePrefs.DrivePath[deviceNumber - 8], filename, 256);
         return true;
     }
     Prefs p = ThePrefs;
-    p.DriveType[deviceNumber-8] = DRVTYPE_D64;
     strncpy(p.DrivePath[deviceNumber - 8], filename, 256);
     theC64->NewPrefs(&p);
     ThePrefs = p;

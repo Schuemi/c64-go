@@ -184,6 +184,8 @@ typedef long int32;
 #endif	// __BEOS__
 
 #define UNUSED(x) (x = x)
+#ifdef ESP32
+#include "LibOdroidGo.h"
 
 #ifndef ownrand
     #define ownrand
@@ -214,6 +216,9 @@ typedef long int32;
         }
     }
     
+#endif
+    
+
 #ifdef __cplusplus
 }
 #endif

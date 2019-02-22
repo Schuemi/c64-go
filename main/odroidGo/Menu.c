@@ -669,7 +669,7 @@ MENU_ACTION odroidFrodoGUI_showMenu() {
            switch(currentSelectedItem){
                ///////////// Load File ///////////////////
                case MENU_ITEM_LOADFILE:   
-                   lastSelectedFile = odroidFmsxGUI_chooseFile(".d64\0\0"); 
+                   lastSelectedFile = odroidFmsxGUI_chooseFile(".d64\0.t64\0");
                    if (lastSelectedFile != NULL) {
                        odroidFrodoGUI_msgBox("Loading...", "Please wait while loading", 0);
                        char* fullPath = (char*)malloc(1024);
@@ -726,7 +726,7 @@ MENU_ACTION odroidFrodoGUI_showMenu() {
                         odroidFrodoGUI_msgBox("Change disc", "NAV is running. \nPlease use \"Load File\"", 1);
                         break;
                    }
-                   char* file = odroidFmsxGUI_chooseFile(".d64\0\0"); 
+                   char* file = odroidFmsxGUI_chooseFile(".d64\0.t64\0"); 
                    if (file != NULL) {
                        odroidFrodoGUI_msgBox("Loading...", "Please wait while loading", 0);
                        char* fullPath = (char*)malloc(1024);

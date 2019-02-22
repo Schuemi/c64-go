@@ -86,8 +86,7 @@ void T64Drive::open_close_t64_file(char *t64name)
 {
 	uint8 buf[64];
 	bool parsed_ok = false;
-
-	// Close old .t64, if open
+        // Close old .t64, if open
 	if (the_file != NULL) {
 		close_all_channels();
 		fclose(the_file);
@@ -157,7 +156,7 @@ bool T64Drive::parse_t64_file(void)
 	for (i=0, j=0; i<max; i++)
 		if (buf2[i*32] == 1) {
 			memcpy(file_info[j].name, buf2+i*32+16, 16);
-
+                        printf("filename %d: %s\n", j, file_info[j].name);
 			// Strip trailing spaces
 			file_info[j].name[16] = 0x20;
 			p = file_info[j].name + 16;
@@ -312,7 +311,11 @@ uint8 T64Drive::open_file(int channel, char *filename)
 	if (find_first_file(plainname, filetype, &num)) {
 
 		// Open temporary file
-		if ((file[channel] = tmpfile()) != NULL) {
+#ifdef ESP32            
+		if ((file[channel] = _tmpfile()) != NULL) {
+#else
+		if ((file[channel] = tmpfile()) != NULL) {                   
+#endif                    
 
 			// Write load address (.t64 only)
 			if (!is_lynx) {
@@ -433,7 +436,8 @@ bool T64Drive::find_first_file(char *name, int type, int *num)
 
 uint8 T64Drive::open_directory(int channel, char *filename)
 {
-	char buf[] = "\001\004\001\001\0\0\022\042                \042 00 2A";
+printf("T64Drive::open_directory %s\n", filename)	;
+    char buf[] = "\001\004\001\001\0\0\022\042                \042 00 2A";
 	char* str = new char[NAMEBUF_LENGTH];
 	char* pattern = new char[NAMEBUF_LENGTH];
 	char *p, *q;
@@ -449,7 +453,12 @@ uint8 T64Drive::open_directory(int channel, char *filename)
 	convert_filename(filename, pattern, &filemode, &filetype);
 
 	// Create temporary file
-	if ((file[channel] = tmpfile()) == NULL){
+#ifdef ESP32            
+		if ((file[channel] = _tmpfile()) == NULL){
+#else
+		if ((file[channel] = tmpfile()) == NULL){
+#endif 
+	
             delete[] str;
             delete[] pattern;
 		return ST_OK;
@@ -462,11 +471,12 @@ uint8 T64Drive::open_directory(int channel, char *filename)
 	fwrite(buf, 1, 32, file[channel]);
 
 	// Create and write one line for every directory entry
+        printf("files: %d\n", num_files);
 	for (num=0; num<num_files; num++) {
-
+                printf("%s\n", file_info[num].name);
 		// Include only files matching the pattern
 		if (match(pattern, file_info[num].name)) {
-
+printf("match %s\n", file_info[num].name);
 			// Clear line with spaces and terminate with null byte
 			memset(buf, ' ', 31);
 			buf[31] = 0;

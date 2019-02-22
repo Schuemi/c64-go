@@ -41,6 +41,7 @@ char* fullCurrentDir;
 struct dirent dirInfo;
 struct dirent firstDirEntry;
 bool haveFirstDirEntry = false;
+unsigned int tmpFileNumber = 0;
 
 bool hasExt(const char *file, const char *Ext) {
     
@@ -121,7 +122,12 @@ int initFiles(){
     strncpy(fullCurrentDir, FRODO_ROOT_GAMESDIR, 612);
     
 }
-
+FILE * _tmpfile()
+{
+    char buf[512];
+    snprintf(buf, 512, FRODO_ROOT_DATADIR"/tmp%u", tmpFileNumber++);
+    return _fopen(buf, "w+");
+}
 int chdir(const char *path)
 {
     if (path == 0) return -1;

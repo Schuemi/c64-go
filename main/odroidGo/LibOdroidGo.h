@@ -180,7 +180,7 @@ int _fseek(FILE * f, long a, int b);
 long _ftell( FILE * f);
 void _rewind(FILE* f);
 size_t _fread(_PTR __restrict p, size_t _size, size_t _n, FILE *__restrict f);
-
+FILE * _tmpfile();
 
 
 #ifdef __cplusplus
