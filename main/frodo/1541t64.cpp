@@ -156,8 +156,7 @@ bool T64Drive::parse_t64_file(void)
 	for (i=0, j=0; i<max; i++)
 		if (buf2[i*32] == 1) {
 			memcpy(file_info[j].name, buf2+i*32+16, 16);
-                        printf("filename %d: %s\n", j, file_info[j].name);
-			// Strip trailing spaces
+                        // Strip trailing spaces
 			file_info[j].name[16] = 0x20;
 			p = file_info[j].name + 16;
 			while (*p-- == 0x20) ;
@@ -436,7 +435,6 @@ bool T64Drive::find_first_file(char *name, int type, int *num)
 
 uint8 T64Drive::open_directory(int channel, char *filename)
 {
-printf("T64Drive::open_directory %s\n", filename)	;
     char buf[] = "\001\004\001\001\0\0\022\042                \042 00 2A";
 	char* str = new char[NAMEBUF_LENGTH];
 	char* pattern = new char[NAMEBUF_LENGTH];
@@ -471,12 +469,9 @@ printf("T64Drive::open_directory %s\n", filename)	;
 	fwrite(buf, 1, 32, file[channel]);
 
 	// Create and write one line for every directory entry
-        printf("files: %d\n", num_files);
 	for (num=0; num<num_files; num++) {
-                printf("%s\n", file_info[num].name);
 		// Include only files matching the pattern
 		if (match(pattern, file_info[num].name)) {
-printf("match %s\n", file_info[num].name);
 			// Clear line with spaces and terminate with null byte
 			memset(buf, ' ', 31);
 			buf[31] = 0;
