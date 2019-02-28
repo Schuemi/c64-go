@@ -17,7 +17,7 @@ and put the BIOS files in /roms/c64/bios. You need the files "1541 ROM", "Basic 
 
 Your root folder to browse for games will be /roms/c64/. You can have subfolders in /roms/c64/. 
 
-Currently only .d64 files can be loaded.
+Currently only .d64 and .t64 (tapes) files can be loaded.
 
 In /odroid/data/c64 you can save keymapping files if you wish. The default keymapping is:
 ```
