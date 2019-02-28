@@ -19,6 +19,8 @@
 
 #include "esp_heap_caps.h"
 
+#include "UserPortInterface.h"
+
 #include "UserPort_4Player.h"
 
 
@@ -65,13 +67,19 @@ C64::C64()
 	Color = new uint8[0x0400];
 	RAM1541 = new uint8[0x0800];
 	ROM1541 = new uint8[0x4000];*/
-        RAM = (uint8_t*)heap_caps_malloc(0x10000, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
-        Basic = (uint8_t*)heap_caps_malloc(0x2000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        Kernal = (uint8_t*)heap_caps_malloc(0x2000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        Char = (uint8_t*)heap_caps_malloc(0x1000, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
-        Color = (uint8_t*)heap_caps_malloc(0x0400, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
-        RAM1541 = (uint8_t*)heap_caps_malloc(0x0800, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        ROM1541 = (uint8_t*)heap_caps_malloc(0x4000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        
+        
+        RAM = (uint8_t*)heap_caps_calloc(1, 0x10000, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+        if (! RAM){
+            printf ("Not enough DMA RAM for 64K main memory. Have to use SPI RAM\n");
+            RAM = (uint8_t*)heap_caps_calloc(1, 0x10000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        }
+        Basic = (uint8_t*)heap_caps_calloc(1, 0x2000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        Kernal = (uint8_t*)heap_caps_calloc(1, 0x2000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        Char = (uint8_t*)heap_caps_calloc(1, 0x1000, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+        Color = (uint8_t*)heap_caps_calloc(1, 0x0400, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+        RAM1541 = (uint8_t*)heap_caps_calloc(1, 0x0800, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        ROM1541 = (uint8_t*)heap_caps_calloc(1, 0x4000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         printf("RAM: %p\n", RAM);
         printf("Basic: %p\n", Basic);
         printf("Kernal: %p\n", Kernal);

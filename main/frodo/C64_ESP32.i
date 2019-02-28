@@ -54,7 +54,8 @@ static struct timeval tv_start;
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/types.h>
-
+#include "UserPort_4Player.h"
+#include "CPUC64.h"
 
 int usleep(unsigned long int microSeconds)
 {
@@ -150,7 +151,8 @@ void C64::Run(void)
 void C64::VBlank(bool draw_frame)
 {
 	// Poll keyboard
-      
+   
+   
    
 #ifdef VERBOSE_VIDEO
     scounter++;
@@ -190,7 +192,15 @@ void C64::VBlank(bool draw_frame)
             
             TheDisplay->PollKeyboard(TheCIA1->KeyMatrix, TheCIA1->RevMatrix, &joykey, &joykey2);
             #ifdef WITH_WLAN	
-                   exchangeNetworkState(TheCIA1->KeyMatrix, TheCIA1->RevMatrix, &joykey, &joykey2);
+                   uint8_t joykey3 = 0xff;
+                   uint8_t joykey4 = 0xff;
+                   exchangeNetworkState(TheCIA1->KeyMatrix, TheCIA1->RevMatrix, &joykey, &joykey2, &joykey3, &joykey4);
+                    if (TheUserPortCardridge != NULL && TheUserPortCardridge->GetType() == UserPortInterface::TYPE_4PLAYER_PROTOVISION) {
+                        UserPort_4Player* vplayer = (UserPort_4Player*)TheUserPortCardridge;
+                        vplayer->setJoy3(joykey3);
+                        vplayer->setJoy4(joykey4);
+                        
+                    }
             #endif
 
             if (ThePrefs.JoystickSwap 

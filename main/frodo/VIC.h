@@ -9,14 +9,14 @@
 
 
 // Define this if you want global variables instead of member variables
-#if defined(__i386) || defined(mc68000) || defined(__MC68K__)
-#define GLOBAL_VARS
-#endif
+//#if defined(__i386) || defined(mc68000) || defined(__MC68K__)
+//#define GLOBAL_VARS
+//#endif
 
 // Define this if you have a processor that can do unaligned accesses quickly
-#if defined(__i386) || defined(mc68000) || defined(__MC68K__)
-#define CAN_ACCESS_UNALIGNED
-#endif
+//#if defined(__i386) || defined(mc68000) || defined(__MC68K__)
+//#define CAN_ACCESS_UNALIGNED
+//#endif
 
 
 // Total number of raster lines (PAL)
@@ -270,5 +270,15 @@ struct MOS6569State {
 	uint8 last_vic_byte;	// Last byte read by VIC
 	bool ud_border_on;		// Flag: Upper/lower border on
 };
+
+typedef union {
+	uint32 b;
+	struct {
+		uint8 a,b,c,d;
+	} a;
+
+} color_table_t;
+
+extern const color_table_t TextColorTable[16][16][256][2];
 
 #endif

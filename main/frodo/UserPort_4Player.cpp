@@ -18,6 +18,7 @@
 UserPort_4Player::UserPort_4Player() {
     joystick3 = 0xff;
     joystick4 = 0xff;
+    activeJoystick = &joystick3;
 }
 
 UserPort_4Player::~UserPort_4Player() {

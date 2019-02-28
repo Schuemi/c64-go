@@ -67,7 +67,7 @@ void client_init();
 void server_wait_for_player();
 void client_try_connect();
 MULTIPLAYER_STATE getMultiplayState();
-void exchangeNetworkState(unsigned char *key_matrix, unsigned char *rev_matrix, unsigned char *joystick1, unsigned char *joystick2);
+void exchangeNetworkState(unsigned char *key_matrix, unsigned char *rev_matrix, unsigned char *joystick1, unsigned char *joystick2, unsigned char *joystick3, unsigned char *joystick4);
 const char* getMPFileName();
 char mp_isMultiplayer();
 char mp_isServer();
