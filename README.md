@@ -77,6 +77,9 @@ Frodo has two modes: PC mode and SC mode. PC mode is much faster, but cannot pla
 
 # Multiplayer (up to 4 Players!)
 
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/Wn_FygrDg_4/0.jpg)](https://www.youtube.com/watch?v=Wn_FygrDg_4 "Odroid Go 4 player!")
+
+
 Multiplayer is really fun. :)
 
 For the third and the fourth ports I'm emulating a [4 Player interface](https://www.protovision.games/hardw/4_player.php?language=en). All games working with this Interface will also work in the emulation with up to 4 Odroids Go. My favorite is Bomb Mania :)
