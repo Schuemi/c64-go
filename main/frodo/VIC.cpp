@@ -1,4 +1,3 @@
-#ifndef FRODO_SC
 /*
  *  VIC.cpp - 6569R5 emulation (line based)
  *
@@ -85,7 +84,7 @@ const int COL38_XSTOP = 0x157;
 
 
 // Tables for sprite X expansion
-uint16 ExpTable[256] = {
+const uint16 ExpTable[256] = {
 	0x0000, 0x0003, 0x000C, 0x000F, 0x0030, 0x0033, 0x003C, 0x003F,
 	0x00C0, 0x00C3, 0x00CC, 0x00CF, 0x00F0, 0x00F3, 0x00FC, 0x00FF,
 	0x0300, 0x0303, 0x030C, 0x030F, 0x0330, 0x0333, 0x033C, 0x033F,
@@ -120,7 +119,7 @@ uint16 ExpTable[256] = {
 	0xFFC0, 0xFFC3, 0xFFCC, 0xFFCF, 0xFFF0, 0xFFF3, 0xFFFC, 0xFFFF
 };
 
-uint16 MultiExpTable[256] = {
+const uint16 MultiExpTable[256] = {
 	0x0000, 0x0005, 0x000A, 0x000F, 0x0050, 0x0055, 0x005A, 0x005F,
 	0x00A0, 0x00A5, 0x00AA, 0x00AF, 0x00F0, 0x00F5, 0x00FA, 0x00FF,
 	0x0500, 0x0505, 0x050A, 0x050F, 0x0550, 0x0555, 0x055A, 0x055F,
@@ -155,22 +154,22 @@ uint16 MultiExpTable[256] = {
 	0xFFA0, 0xFFA5, 0xFFAA, 0xFFAF, 0xFFF0, 0xFFF5, 0xFFFA, 0xFFFF
 };
 
-#ifdef __POWERPC__
-static union {
-	struct {
-		uint8 a,b,c,d,e,f,g,h;
-	} a;
-	double b;
-} TextColorTable[16][16][256];
-#else
-union  TextColorTableUnion {
-	struct {
-		uint8 a,b,c,d;
-	} a;
-	uint32 b;
-} ;
-static TextColorTableUnion *TextColorTable; //[16][16][256][2];
-#endif
+// #ifdef __POWERPC__
+// static union {
+// 	struct {
+// 		uint8 a,b,c,d,e,f,g,h;
+// 	} a;
+// 	double b;
+// } TextColorTable[16][16][256];
+// #else
+// union {
+// 	uint32 b;
+// 	struct {
+// 		uint8 a,b,c,d;
+// 	} a;
+
+// } const TextColorTable[16][16][256][2];
+// #endif
 
 #ifdef GLOBAL_VARS
 static uint16 mc_color_lookup[4];
@@ -247,14 +246,11 @@ static bool lp_triggered;				// Flag: Lightpen was triggered in this frame
 /*
  *  Constructor: Initialize variables
  */
-#define TCT(i,j,k,d) TextColorTable[i + (16 * j) + (16 * 16 * k) + (16 * 16 * 256 * d)]
 
 static void init_text_color_table(uint8 *colors)
 {
-    TextColorTable = (TextColorTableUnion*)malloc(16*16*256*2*sizeof(TextColorTableUnion)); //[16][16][256][2];	
-    
-    
-    for (int i = 0; i < 16; i++)
+#if 0
+	for (int i = 0; i < 16; i++)
 		for (int j = 0; j < 16; j++)
 			for (int k = 0; k < 256; k++) {
 #ifdef __POWERPC__
@@ -267,16 +263,17 @@ static void init_text_color_table(uint8 *colors)
 				TextColorTable[i][j][k].a.g = colors[k & 2 ? i : j];
 				TextColorTable[i][j][k].a.h = colors[k & 1 ? i : j];
 #else
-				TCT(i,j,k,0).a.a = colors[k & 128 ? i : j];
-				TCT(i,j,k,0).a.b = colors[k & 64 ? i : j];
-				TCT(i,j,k,0).a.c = colors[k & 32 ? i : j];
-				TCT(i,j,k,0).a.d = colors[k & 16 ? i : j];
-				TCT(i,j,k,1).a.a = colors[k & 8 ? i : j];
-				TCT(i,j,k,1).a.b = colors[k & 4 ? i : j];
-				TCT(i,j,k,1).a.c = colors[k & 2 ? i : j];
-				TCT(i,j,k,1).a.d = colors[k & 1 ? i : j];
+				TextColorTable[i][j][k][0].a.a = colors[k & 128 ? i : j];
+				TextColorTable[i][j][k][0].a.b = colors[k & 64 ? i : j];
+				TextColorTable[i][j][k][0].a.c = colors[k & 32 ? i : j];
+				TextColorTable[i][j][k][0].a.d = colors[k & 16 ? i : j];
+				TextColorTable[i][j][k][1].a.a = colors[k & 8 ? i : j];
+				TextColorTable[i][j][k][1].a.b = colors[k & 4 ? i : j];
+				TextColorTable[i][j][k][1].a.c = colors[k & 2 ? i : j];
+				TextColorTable[i][j][k][1].a.d = colors[k & 1 ? i : j];
 #endif
 			}
+#endif
 }
 
 MOS6569::MOS6569(C64 *c64, C64Display *disp, MOS6510 *CPU, uint8 *RAM, uint8 *Char, uint8 *Color)
@@ -915,8 +912,8 @@ inline void MOS6569::el_std_text(uint8 *p, uint8 *q, uint8 *r)
 #ifdef 	__POWERPC__
 		*++dp = TextColorTable[color][b0cc][data].b;
 #else
-		*lp++ = TCT(color,b0cc,data,0).b;
-		*lp++ = TCT(color,b0cc,data,1).b;
+		*lp++ = TextColorTable[color][b0cc][data][0].b;
+		*lp++ = TextColorTable[color][b0cc][data][1].b;
 #endif
 	}
 }
@@ -953,9 +950,9 @@ inline void MOS6569::el_mc_text(uint8 *p, uint8 *q, uint8 *r)
 			*(double *)wp = TextColorTable[color][b0c][data].b;
 			wp += 4;
 #else
-			*(uint32 *)wp = TCT(color,b0c,data,0).b;
+			*(uint32 *)wp = TextColorTable[color][b0c][data][0].b;
 			wp += 2;
-			*(uint32 *)wp = TCT(color,b0c,data,1).b;
+			*(uint32 *)wp = TextColorTable[color][b0c][data][1].b;
 			wp += 2;
 #endif
 		}
@@ -985,8 +982,8 @@ inline void MOS6569::el_std_bitmap(uint8 *p, uint8 *q, uint8 *r)
 #ifdef __POWERPC__
 		*++dp = TextColorTable[color][bcolor][data].b;
 #else
-		*lp++ = TCT(color,bcolor,data,0).b;
-		*lp++ = TCT(color,bcolor,data,1).b;
+		*lp++ = TextColorTable[color][bcolor][data][0].b;
+		*lp++ = TextColorTable[color][bcolor][data][1].b;
 #endif
 	}
 }
@@ -1058,8 +1055,8 @@ inline void MOS6569::el_ecm_text(uint8 *p, uint8 *q, uint8 *r)
 #ifdef __POWERPC__
 		*++dp = TextColorTable[color][bcolor][data].b;
 #else
-		*lp++ = TCT(color,bcolor,data,0).b;
-		*lp++ = TCT(color,bcolor,data,1).b;
+		*lp++ = TextColorTable[color][bcolor][data][0].b;
+		*lp++ = TextColorTable[color][bcolor][data][1].b;
 #endif
 	}
 }
@@ -1084,8 +1081,8 @@ inline void MOS6569::el_std_idle(uint8 *p, uint8 *r)
 #else
 	uint8 data = *get_physical(ctrl1 & 0x40 ? 0x39ff : 0x3fff);
 	uint32 *lp = (uint32 *)p;
-	uint32 conv0 = TCT(0,b0c,data,0).b;
-	uint32 conv1 = TCT(0,b0c,data,1).b;
+	uint32 conv0 = TextColorTable[0][b0c][data][0].b;
+	uint32 conv1 = TextColorTable[0][b0c][data][1].b;
 
 	for (int i=0; i<40; i++) {
 		*lp++ = conv0;
@@ -1865,4 +1862,3 @@ VIC_nop:
 
 	return cycles_left;
 }
-#endif

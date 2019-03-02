@@ -42,7 +42,7 @@
 
 MOS6526::MOS6526(MOS6510 *CPU) : the_cpu(CPU) {}
 MOS6526_1::MOS6526_1(MOS6510 *CPU, MOS6569 *VIC) : MOS6526(CPU), the_vic(VIC) {}
-MOS6526_2::MOS6526_2(MOS6510 *CPU, MOS6569 *VIC, MOS6502_1541 *CPU1541) : MOS6526(CPU), the_vic(VIC), the_cpu_1541(CPU1541) {}
+MOS6526_2::MOS6526_2(MOS6510 *CPU, MOS6569 *VIC, MOS6502_1541 *CPU1541) : MOS6526(CPU), the_vic(VIC), the_cpu_1541(CPU1541) { userPort = NULL; }
 
 
 /*
@@ -222,14 +222,17 @@ uint8 MOS6526_1::ReadRegister(uint16 adr)
 /*
  *  Read from register (CIA 2)
  */
-
 uint8 MOS6526_2::ReadRegister(uint16 adr)
 {
-	switch (adr) {
+    if (userPort) {
+        if (adr == 0x00) { pra &=0xfb; pra |= userPort->ReadPA() & 0x4; }
+        if (adr == 0x01) return userPort->ReadPB();
+    }	
+    switch (adr) {
 		case 0x00:
 			return (pra | ~ddra) & 0x3f
 				| IECLines & the_cpu_1541->IECLines;
-		case 0x01: return prb | ~ddrb;
+		case 0x01:return prb | ~ddrb;
 		case 0x02: return ddra;
 		case 0x03: return ddrb;
 		case 0x04: return ta;
@@ -361,7 +364,13 @@ void MOS6526_1::WriteRegister(uint16 adr, uint8 byte)
 
 void MOS6526_2::WriteRegister(uint16 adr, uint8 byte)
 {
-	switch (adr) {
+    if (userPort){
+        if (adr == 0x00) userPort->WritePA(byte & 0x4);
+        if (adr == 0x01) userPort->WritePB(byte);
+        
+    
+    }
+    switch (adr) {
 		case 0x0:{
 			pra = byte;
 			byte = ~pra & ddra;
@@ -554,5 +563,10 @@ void MOS6526_2::TriggerInterrupt(int bit)
 		icr |= 0x80;
 		the_cpu->TriggerNMI();
 	}
+}
+
+void MOS6526_2::insertUserPortCard(UserPortInterface* c)
+{
+    userPort = c;
 }
 #endif

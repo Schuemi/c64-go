@@ -19,6 +19,10 @@
 
 #include "esp_heap_caps.h"
 
+#include "UserPortInterface.h"
+
+#include "UserPort_4Player.h"
+
 
 #if defined(__unix) && !defined(__svgalib__)
 #include "CmdPipe.h"
@@ -48,7 +52,7 @@ C64::C64()
 	thread_running = false;
 	quit_thyself = false;
 	have_a_break = false;
-
+        TheUserPortCardridge = NULL;
 	// System-dependent things
 	c64_ctor1();
 
@@ -63,13 +67,19 @@ C64::C64()
 	Color = new uint8[0x0400];
 	RAM1541 = new uint8[0x0800];
 	ROM1541 = new uint8[0x4000];*/
-        RAM = (uint8_t*)heap_caps_malloc(0x10000, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
-        Basic = (uint8_t*)heap_caps_malloc(0x2000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        Kernal = (uint8_t*)heap_caps_malloc(0x2000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        Char = (uint8_t*)heap_caps_malloc(0x1000, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
-        Color = (uint8_t*)heap_caps_malloc(0x0400, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
-        RAM1541 = (uint8_t*)heap_caps_malloc(0x0800, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        ROM1541 = (uint8_t*)heap_caps_malloc(0x4000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        
+        
+        RAM = (uint8_t*)heap_caps_calloc(1, 0x10000, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+        if (! RAM){
+            printf ("Not enough DMA RAM for 64K main memory. Have to use SPI RAM\n");
+            RAM = (uint8_t*)heap_caps_calloc(1, 0x10000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        }
+        Basic = (uint8_t*)heap_caps_calloc(1, 0x2000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        Kernal = (uint8_t*)heap_caps_calloc(1, 0x2000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        Char = (uint8_t*)heap_caps_calloc(1, 0x1000, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+        Color = (uint8_t*)heap_caps_calloc(1, 0x0400, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+        RAM1541 = (uint8_t*)heap_caps_calloc(1, 0x0800, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        ROM1541 = (uint8_t*)heap_caps_calloc(1, 0x4000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         printf("RAM: %p\n", RAM);
         printf("Basic: %p\n", Basic);
         printf("Kernal: %p\n", Kernal);
@@ -91,7 +101,9 @@ C64::C64()
 	TheCIA2 = TheCPU->TheCIA2 = TheCPU1541->TheCIA2 = new MOS6526_2(TheCPU, TheVIC, TheCPU1541);
 	TheIEC = TheCPU->TheIEC = new IEC(TheDisplay);
 	TheREU = TheCPU->TheREU = new REU(TheCPU);
-
+        
+        
+        
 	// Initialize RAM with powerup pattern
 	for (i=0, p=RAM; i<512; i++) {
 		for (j=0; j<64; j++)
@@ -156,7 +168,19 @@ C64::~C64()
 
 	c64_dtor();
 }
-
+/*
+ * Insert User Port Cartridge
+ */
+bool C64::insertUserPortCartridge(int type) {
+    if (type == UserPortInterface::TYPE_4PLAYER_PROTOVISION){
+        // insert 4 player interface
+        TheUserPortCardridge = new UserPort_4Player();
+        TheCIA2->insertUserPortCard(TheUserPortCardridge);
+        return true;
+    }
+    
+    return false;
+}
 
 /*
  *  Reset C64

@@ -196,6 +196,7 @@ typedef long int32;
     #define srand xsrand
 
     extern ranctx pseudoRand;
+  
     
     static int xrand(){
         

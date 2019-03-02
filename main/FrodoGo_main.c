@@ -64,8 +64,14 @@ ranctx pseudoRand;
 
 void app_main(void) {
            
-  nvs_flash_init();
- 
+  esp_err_t error = nvs_flash_init();
+  printf("nvs_flash_init: %x\n", error);
+  if (error == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+     // The nvs was saved with  a newer version of esp-idf. We have to erase it, sorry
+      nvs_flash_erase();
+      nvs_flash_init();
+  }
+  
 
    uint8_t failure = 0;
    

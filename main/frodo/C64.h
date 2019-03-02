@@ -45,6 +45,7 @@ class REU;
 class MOS6502_1541;
 class Job1541;
 class CmdPipe;
+class UserPortInterface;
 
 class C64 {
 public:
@@ -75,7 +76,10 @@ public:
 	bool LoadVICState(FILE *f);
 	bool LoadSIDState(FILE *f);
 	bool LoadCIAState(FILE *f);
-
+        
+        
+        bool insertUserPortCartridge(int type);
+        
 	uint8 *RAM, *Basic, *Kernal,
 		  *Char, *Color;		// C64
 	uint8 *RAM1541, *ROM1541;	// 1541
@@ -89,7 +93,8 @@ public:
 	MOS6526_2 *TheCIA2;
 	IEC *TheIEC;
 	REU *TheREU;
-
+        UserPortInterface* TheUserPortCardridge;
+        
 	MOS6502_1541 *TheCPU1541;	// 1541
 	Job1541 *TheJob1541;
 
