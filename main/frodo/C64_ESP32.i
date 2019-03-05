@@ -147,7 +147,7 @@ void C64::Run(void)
 /*
  *  Vertical blank: Poll keyboard and joysticks, update window, get WLAN remote state
  */
-
+char vblankCounter = 0;
 void C64::VBlank(bool draw_frame)
 {
 	// Poll keyboard
@@ -222,7 +222,16 @@ void C64::VBlank(bool draw_frame)
           
 	// Update window if needed
 	if (draw_frame) {
-    	TheDisplay->Update();
+            TheDisplay->Update();
+        
+        
+        /* save snapshot in memory */
+        
+        if (!mp_isMultiplayer() && ThePrefs.LimitSpeed && vblankCounter++ > 5)  {
+            vblankCounter= 0;
+            printf("save snapshot\n");
+            SaveSnapshotMemory();
+        }
         
        /* No speed check. The sound shlould automaticly slow don't to the right speed.
 #ifndef WITH_WLAN       

@@ -120,6 +120,7 @@ void C64_1541emluation( char on ) {
     Prefs p = ThePrefs;
     if (on)p.Emul1541Proc = true; else p.Emul1541Proc = false;
     theC64->NewPrefs(&p);
+    
     ThePrefs = p;
 }
 void C64_setFrameSkip( int frames ) {

@@ -511,6 +511,7 @@ void C64Display::fastMode(bool on)
 {
     if (mp_isMultiplayer()) return;
     if (on) {
+        TheC64->MaxAvailableGoBack = 0;
         ThePrefs.SkipFrames = 10;
         ThePrefs.LimitSpeed = false;
     } else {
@@ -683,17 +684,17 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
         holdShift = 0;
         
         // this should update the navRunning variable, so i dont have to check it so often with the displaycontent
-        if (out_state.values[ODROID_INPUT_A] && navRunning == 1) {
+        if ((out_state.values[ODROID_INPUT_A] || out_state.values[ODROID_INPUT_LEFT]) && navRunning == 1) {
             navRunning = isNAVrunning();
             if (navRunning) navRunning = 2;
         }
-        if (! out_state.values[ODROID_INPUT_A] && navRunning == 2) navRunning = 1;
+        if (! out_state.values[ODROID_INPUT_A] && ! out_state.values[ODROID_INPUT_LEFT] && navRunning == 2) navRunning = 1;
         
         
         if (! navRunning) {
             if (out_state.values[ODROID_INPUT_UP]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_UP);
             if (out_state.values[ODROID_INPUT_DOWN]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_DOWN);
-            if (out_state.values[ODROID_INPUT_LEFT]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_LEFT);
+            if (out_state.values[ODROID_INPUT_LEFT] && keyPress == 0) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_LEFT);
             if (out_state.values[ODROID_INPUT_RIGHT]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_RIGHT);
             if (out_state.values[ODROID_INPUT_A]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_A);
             if (out_state.values[ODROID_INPUT_B]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_B);
@@ -745,11 +746,22 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
         
         if (out_state.values[ODROID_INPUT_VOLUME] && keyPress == 0 ) {
             keyPress = 2;
-            TheC64->TheSID->changeVolumeLevel();
+            
             
         }
-        if (!out_state.values[ODROID_INPUT_VOLUME] && keyPress == 2 )  keyPress = 0;
+        if (!out_state.values[ODROID_INPUT_VOLUME] && keyPress == 2 ) {
+    //        TheC64->TheSID->changeVolumeLevel();
+            keyPress = 0;
+        }
+        if (! out_state.values[ODROID_INPUT_VOLUME] && ! out_state.values[ODROID_INPUT_LEFT] && keyPress == 5 ) {
+            keyPress = 0;
+        }
         
+        if (! navRunning && out_state.values[ODROID_INPUT_VOLUME] && out_state.values[ODROID_INPUT_LEFT]) {
+            TheC64->LoadSnapshotMemory();
+            usleep(30000);
+            keyPress = 5;
+        }
         odroid_keyPress(out_state);
         
         

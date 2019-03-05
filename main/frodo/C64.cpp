@@ -80,6 +80,8 @@ C64::C64()
         Color = (uint8_t*)heap_caps_calloc(1, 0x0400, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
         RAM1541 = (uint8_t*)heap_caps_calloc(1, 0x0800, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         ROM1541 = (uint8_t*)heap_caps_calloc(1, 0x4000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        for (int i = 0; i < MAX_SAVE_STATES_MEMORY; i++) SaveStateMemory[i] = (uint8_t*)heap_caps_calloc(1, 0x11000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        
         printf("RAM: %p\n", RAM);
         printf("Basic: %p\n", Basic);
         printf("Kernal: %p\n", Kernal);
@@ -87,6 +89,7 @@ C64::C64()
         printf("Color: %p\n", Color);
         printf("RAM1541: %p\n", RAM1541);
         printf("ROM1541: %p\n", ROM1541);
+        for (int i = 0; i < MAX_SAVE_STATES_MEMORY; i++) printf("SaveStateMemory: %p\n", SaveStateMemory[i]);
         
                 
 	// Create the chips
@@ -240,9 +243,16 @@ void C64::NewPrefs(Prefs *prefs)
 	TheREU->NewPrefs(prefs);
 	TheSID->NewPrefs(prefs);
 
-	// Reset 1541 processor if turned on
-	if (!ThePrefs.Emul1541Proc && prefs->Emul1541Proc)
+	// Reset 1541 processor if turned on and dont go back
+	if (!ThePrefs.Emul1541Proc && prefs->Emul1541Proc) {
 		TheCPU1541->AsyncReset();
+                MaxAvailableGoBack = 0;
+        }
+        // dont go back, if turned off
+	if (ThePrefs.Emul1541Proc && !prefs->Emul1541Proc) {
+		MaxAvailableGoBack = 0;
+        }
+        
 }
 
 
@@ -334,6 +344,32 @@ void C64::SaveRAM(char *filename)
 
 
 /*
+ *  Save CPU state to memory
+ *
+ *  0: Error / Instruction not completed
+ *  size_t: OK
+ * 
+ */
+size_t C64::SaveCPUStateMemory(uint8 *memory)
+{
+    MOS6510State state;
+    TheCPU->GetState(&state);
+
+    if (!state.instruction_complete)
+            return 0;
+
+    memcpy(memory, RAM, 0x10000);
+    memory += 0x10000;
+    
+    memcpy(memory, Color, 0x400);
+    memory += 0x400;
+    
+    memcpy(memory, &state, sizeof(MOS6510State));
+    
+    
+    return 0x10000 + 0x400 + sizeof(MOS6510State);
+}
+/*
  *  Save CPU state to snapshot
  *
  *  0: Error
@@ -360,7 +396,18 @@ int C64::SaveCPUState(FILE *f)
 /*
  *  Load CPU state from snapshot
  */
-
+size_t C64::LoadCPUStateMemory(uint8 *memory)
+{
+    MOS6510State state;
+    memcpy(RAM, memory, 0x10000);
+    memory += 0x10000;
+    memcpy(Color, Color, 0x400);
+    memory += 0x400;
+    memcpy(&state, memory, sizeof(MOS6510State));
+    TheCPU->SetState(&state);
+    return 0x10000 + 0x400 + sizeof(MOS6510State);
+    
+}
 bool C64::LoadCPUState(FILE *f)
 {
 	MOS6510State state;
@@ -374,6 +421,27 @@ bool C64::LoadCPUState(FILE *f)
 		return true;
 	} else
 		return false;
+}
+
+/*
+ *  Save 1541 state to mem
+ *
+ *  0: Error / Instruction not completed
+ *  size_t: OK
+ * 
+ */
+
+size_t C64::Save1541StateMemory(uint8 *memory)
+{
+	MOS6502State state;
+	TheCPU1541->GetState(&state);
+
+	if (!state.idle && !state.instruction_complete)
+		return 0;
+        memcpy(memory,RAM1541, 0x800);
+        memory += 0x800;
+        memcpy(memory,&state, sizeof(MOS6502State));
+	return 0x800 + sizeof(MOS6502State);
 }
 
 
@@ -403,7 +471,15 @@ int C64::Save1541State(FILE *f)
 /*
  *  Load 1541 state from snapshot
  */
-
+size_t C64::Load1541StateMemory(uint8 *memory) 
+{
+    MOS6502State state;
+    memcpy(RAM1541, memory, 0x800);
+    memory += 0x800;
+    memcpy(&state, memory, sizeof(MOS6502State));
+    TheCPU1541->SetState(&state);
+    return 0x800 + sizeof(MOS6502State);
+}
 bool C64::Load1541State(FILE *f)
 {
 	MOS6502State state;
@@ -422,6 +498,13 @@ bool C64::Load1541State(FILE *f)
 /*
  *  Save VIC state to snapshot
  */
+size_t C64::SaveVICStateMemory(uint8 *memory)
+{
+    MOS6569State state;
+    TheVIC->GetState(&state);
+    memcpy(memory, &state, sizeof(MOS6569State));
+    return  sizeof(MOS6569State);
+}
 
 bool C64::SaveVICState(FILE *f)
 {
@@ -434,7 +517,13 @@ bool C64::SaveVICState(FILE *f)
 /*
  *  Load VIC state from snapshot
  */
-
+size_t C64::LoadVICStateMemory(uint8 *memory)
+{
+    MOS6569State state;
+    memcpy(&state, memory, sizeof(MOS6569State));
+    TheVIC->SetState(&state);
+    return sizeof(MOS6569State);
+}
 bool C64::LoadVICState(FILE *f)
 {
 	MOS6569State state;
@@ -450,7 +539,14 @@ bool C64::LoadVICState(FILE *f)
 /*
  *  Save SID state to snapshot
  */
-
+size_t C64::SaveSIDStateMemory(uint8 *memory)
+{
+	MOS6581State state;
+	TheSID->GetState(&state);
+        memcpy(memory, &state, sizeof(MOS6581State));
+        return sizeof(MOS6581State);
+	
+}
 bool C64::SaveSIDState(FILE *f)
 {
 	MOS6581State state;
@@ -462,7 +558,13 @@ bool C64::SaveSIDState(FILE *f)
 /*
  *  Load SID state from snapshot
  */
-
+size_t C64::LoadSIDStateMemory(uint8 *memory)
+{
+    MOS6581State state;
+    memcpy(&state, memory, sizeof(MOS6581State));
+    TheSID->SetState(&state);
+    return sizeof(MOS6581State);
+}
 bool C64::LoadSIDState(FILE *f)
 {
 	MOS6581State state;
@@ -478,7 +580,16 @@ bool C64::LoadSIDState(FILE *f)
 /*
  *  Save CIA states to snapshot
  */
-
+size_t C64::SaveCIAStateMemory(uint8 *memory)
+{
+    MOS6526State state;
+    TheCIA1->GetState(&state);
+    memcpy(memory, &state, sizeof(MOS6526State));
+    memory+=sizeof(MOS6526State);
+    TheCIA2->GetState(&state);
+    memcpy(memory, &state, sizeof(MOS6526State));
+    return 2*sizeof(MOS6526State);
+}
 bool C64::SaveCIAState(FILE *f)
 {
 	MOS6526State state;
@@ -495,7 +606,17 @@ bool C64::SaveCIAState(FILE *f)
 /*
  *  Load CIA states from snapshot
  */
-
+size_t C64::LoadCIAStateMemory(uint8 *memory)
+{
+    MOS6526State state;
+    memcpy(&state, memory, sizeof(MOS6526State));
+    TheCIA1->SetState(&state);
+    memory += sizeof(MOS6526State);
+    memcpy(&state, memory, sizeof(MOS6526State));
+    TheCIA2->SetState(&state);
+    return 2*sizeof(MOS6526State);
+    
+}
 bool C64::LoadCIAState(FILE *f)
 {
 	MOS6526State state;
@@ -516,6 +637,15 @@ bool C64::LoadCIAState(FILE *f)
  *  Save 1541 GCR state to snapshot
  */
 
+size_t C64::Save1541JobStateMemory(uint8 *memory)
+{
+	Job1541State state;
+	TheJob1541->GetState(&state);
+	memcpy(memory, &state, sizeof(Job1541State));
+        return sizeof(Job1541State);
+}
+
+
 bool C64::Save1541JobState(FILE *f)
 {
 	Job1541State state;
@@ -527,7 +657,13 @@ bool C64::Save1541JobState(FILE *f)
 /*
  *  Load 1541 GCR state from snapshot
  */
-
+size_t C64::Load1541JobStateMemory(uint8 *memory)
+{
+    Job1541State state;
+    memcpy(&state, memory, sizeof(Job1541State));
+    TheJob1541->SetState(&state);
+    return sizeof(Job1541State);
+}
 bool C64::Load1541JobState(FILE *f)
 {
 	Job1541State state;
@@ -553,6 +689,69 @@ bool C64::Load1541JobState(FILE *f)
 		if (!TheCPU1541->Idle) \
 			TheCPU1541->EmulateCycle(); \
 	}
+
+
+
+
+#ifdef FRODO_SC
+#error Sorry, you have to add in SaveSnapshotMemory and LoadSnapshotMemory FRODO_SC instructions first.
+#endif
+
+void C64::SaveSnapshotMemory()
+{
+    printf("SaveSnapshotMemory: %d\n", CurrentSaveStateMemory);
+    uint8_t *memory = SaveStateMemory[CurrentSaveStateMemory];
+    CurrentSaveStateMemory++;
+    if (CurrentSaveStateMemory == MAX_SAVE_STATES_MEMORY)  CurrentSaveStateMemory = 0;
+    memory += SaveVICStateMemory(memory);
+    memory += SaveSIDStateMemory(memory);
+    memory += SaveCIAStateMemory(memory);
+    memory += SaveCPUStateMemory(memory);
+    memory[0] = 0; memory++;// No delay
+    
+    if (ThePrefs.Emul1541Proc) {
+        memcpy(memory, ThePrefs.DrivePath[0], 256);
+        memory += 256;
+
+        memory += Save1541StateMemory(memory);
+        memory[0] = 0; memory++;// No delay
+
+        memory += Save1541JobStateMemory(memory);
+    }
+    MaxAvailableGoBack++;
+    if (MaxAvailableGoBack > MAX_SAVE_STATES_MEMORY) MaxAvailableGoBack = MAX_SAVE_STATES_MEMORY;
+
+}
+
+
+bool C64::LoadSnapshotMemory()
+{
+    if (MaxAvailableGoBack == 0) return false;
+    CurrentSaveStateMemory -= 1;
+    if (CurrentSaveStateMemory < 0)  CurrentSaveStateMemory = MAX_SAVE_STATES_MEMORY - 1;
+    printf("LoadSnapshotMemory: %d\n", CurrentSaveStateMemory);
+    uint8 delay, i;
+    uint8_t *memory = SaveStateMemory[CurrentSaveStateMemory];
+    memory += LoadVICStateMemory(memory);
+    memory += LoadSIDStateMemory(memory);
+    memory += LoadCIAStateMemory(memory);	
+    memory += LoadCPUStateMemory(memory);
+    delay = memory[0];memory++;	// Number of cycles the 6510 is ahead of the previous chips (not used yet)
+    if (ThePrefs.Emul1541Proc) {
+        memcpy(ThePrefs.DrivePath[0], memory, 256);
+        memory += 256;
+        memory += Load1541StateMemory(memory);
+        delay = memory[0];memory++;	// Number of cycles the 6510 is ahead of the previous chips (not used yet)
+        memory += Load1541JobStateMemory(memory);
+
+    }
+    LoadVICStateMemory(SaveStateMemory[CurrentSaveStateMemory]); // copyed this from fileload (don't know why it is necessary): Load VIC data twice in SL (is REALLY necessary sometimes!)
+    MaxAvailableGoBack--;
+    if (MaxAvailableGoBack < 0) MaxAvailableGoBack = 0;
+    return true;		
+	
+}
+
 
 
 /*

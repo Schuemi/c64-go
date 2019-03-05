@@ -63,19 +63,35 @@ public:
 	void PatchKernal(bool fast_reset, bool emul_1541_proc);
 	void SaveRAM(char *filename);
 	void SaveSnapshot(char *filename);
+        void SaveSnapshotMemory();
+        bool LoadSnapshotMemory();
+        
 	bool LoadSnapshot(char *filename);
 	int SaveCPUState(FILE *f);
+        size_t SaveCPUStateMemory(uint8 *memory);
 	int Save1541State(FILE *f);
+        size_t Save1541StateMemory(uint8 *memory);
 	bool Save1541JobState(FILE *f);
+        size_t Save1541JobStateMemory(uint8 *memory);
 	bool SaveVICState(FILE *f);
+        size_t SaveVICStateMemory(uint8 *memory);
 	bool SaveSIDState(FILE *f);
+        size_t SaveSIDStateMemory(uint8 *memory);
 	bool SaveCIAState(FILE *f);
+        size_t SaveCIAStateMemory(uint8 *memory);
+        
 	bool LoadCPUState(FILE *f);
+        size_t LoadCPUStateMemory(uint8 *memory);
 	bool Load1541State(FILE *f);
+        size_t Load1541StateMemory(uint8 *memory);
 	bool Load1541JobState(FILE *f);
+        size_t Load1541JobStateMemory(uint8 *memory);
 	bool LoadVICState(FILE *f);
+        size_t LoadVICStateMemory(uint8 *memory);
 	bool LoadSIDState(FILE *f);
+        size_t LoadSIDStateMemory(uint8 *memory);
 	bool LoadCIAState(FILE *f);
+        size_t LoadCIAStateMemory(uint8 *memory);
         
         
         bool insertUserPortCartridge(int type);
@@ -83,7 +99,12 @@ public:
 	uint8 *RAM, *Basic, *Kernal,
 		  *Char, *Color;		// C64
 	uint8 *RAM1541, *ROM1541;	// 1541
-
+        
+        uint8 *SaveStateMemory[MAX_SAVE_STATES_MEMORY];	// saved state in Memory
+        int8 CurrentSaveStateMemory = 0;
+        int8 MaxAvailableGoBack = 0;
+        
+        
 	C64Display *TheDisplay;
 
 	MOS6510 *TheCPU;			// C64

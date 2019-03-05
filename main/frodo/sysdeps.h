@@ -186,6 +186,7 @@ typedef long int32;
 #define UNUSED(x) (x = x)
 #ifdef ESP32
 #include "LibOdroidGo.h"
+#define MAX_SAVE_STATES_MEMORY 20
 
 #ifndef ownrand
     #define ownrand
