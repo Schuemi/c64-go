@@ -38,7 +38,8 @@ void c64_started() {
     
     char* lastState = malloc(1024);
     char* lastDir = malloc(1024);
-    LoadKeyMapping("/sd/odroid/data/c64/config.ini");
+    C64_setStdKeymapping();
+    LoadKeyMapping(FRODO_CONFIG_FILE);
     
    
     // go to last dir, if exists
@@ -69,7 +70,6 @@ void c64_started() {
             }
         }
         odroidFrodoGUI_setLastLoadedFile(lastGame);
-        C64_setStdKeymapping();
         loadKeyMappingFromGame(getFileName(lastGame));
         
         
@@ -105,6 +105,9 @@ void SetKeyMapping(int Key, char* mappingString) {
         if (!strcmp(mappingString, "KEY_F5")) C64_setKeymapping(Key, KEY_F5);
         if (!strcmp(mappingString, "KEY_F3")) C64_setKeymapping(Key, KEY_F3);
         if (!strcmp(mappingString, "KEY_F1")) C64_setKeymapping(Key, KEY_F1);
+        if (!strcmp(mappingString, "KEY_F7")) C64_setKeymapping(Key, KEY_F7);
+        
+        if (!strcmp(mappingString, "KEY_RET")) C64_setKeymapping(Key, '\n');
 
         if (!strcmp(mappingString, "KEY_CLR")) C64_setKeymapping(Key, KEY_CLR);
         if (!strcmp(mappingString, "KEY_DEL")) C64_setKeymapping(Key, KEY_DEL);
