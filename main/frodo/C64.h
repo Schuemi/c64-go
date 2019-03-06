@@ -80,17 +80,17 @@ public:
 	bool SaveCIAState(FILE *f);
         size_t SaveCIAStateMemory(uint8 *memory);
         
-	bool LoadCPUState(FILE *f);
+	bool LoadCPUState(FILE *f, char version);
         size_t LoadCPUStateMemory(uint8 *memory);
-	bool Load1541State(FILE *f);
+	bool Load1541State(FILE *f, char version);
         size_t Load1541StateMemory(uint8 *memory);
-	bool Load1541JobState(FILE *f);
+	bool Load1541JobState(FILE *f, char version);
         size_t Load1541JobStateMemory(uint8 *memory);
-	bool LoadVICState(FILE *f);
+	bool LoadVICState(FILE *f, char version);
         size_t LoadVICStateMemory(uint8 *memory);
-	bool LoadSIDState(FILE *f);
+	bool LoadSIDState(FILE *f, char version);
         size_t LoadSIDStateMemory(uint8 *memory);
-	bool LoadCIAState(FILE *f);
+	bool LoadCIAState(FILE *f, char version);
         size_t LoadCIAStateMemory(uint8 *memory);
         
         

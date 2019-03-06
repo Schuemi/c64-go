@@ -56,6 +56,7 @@ static struct timeval tv_start;
 #include <sys/types.h>
 #include "UserPort_4Player.h"
 #include "CPUC64.h"
+#include "1541job.h"
 
 int usleep(unsigned long int microSeconds)
 {
@@ -227,12 +228,11 @@ void C64::VBlank(bool draw_frame)
         
         /* save snapshot in memory */
         
-        if (!mp_isMultiplayer() && ThePrefs.LimitSpeed && vblankCounter++ > 5)  {
+        if (! mp_isMultiplayer() && ThePrefs.LimitSpeed && vblankCounter++ > 5)  {
             vblankCounter= 0;
-            printf("save snapshot\n");
             SaveSnapshotMemory();
         }
-        
+       
        /* No speed check. The sound shlould automaticly slow don't to the right speed.
 #ifndef WITH_WLAN       
         if (ThePrefs.LimitSpeed) {
