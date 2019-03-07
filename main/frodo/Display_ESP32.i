@@ -69,7 +69,8 @@ char showKeyboard = 0;
 char reDrawKeyboard = 0;
 char reDrawCursor = 0;
 char flipScreen = 0;
-
+char rewinding = 0;
+ 
 const char* writeKeys = NULL;
 
 int cursorX = 10;
@@ -206,7 +207,7 @@ void C64Display::videoTask(void* arg)
     xQueuePeek(videoQueue, &param, portMAX_DELAY);
     VideoTaskCommand = 0;
     
-    
+    if (rewinding) { drawRewind(); }
     
   
     
@@ -308,7 +309,7 @@ C64Display::C64Display(C64 *the_c64) : TheC64(the_c64)
     writeBuffer = framebuffer[0];
     sendBuffer = framebuffer[1];
   
-    
+    rewinding = 0;
     
     cursor = (uint16_t*)heap_caps_malloc(CURSOR_MAX_WIDTH*CURSOR_MAX_HEIGHT*2, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
     if (!cursor){ printf("malloc cursor failed!\n"); return; }
@@ -511,12 +512,16 @@ void C64Display::fastMode(bool on)
 {
     if (mp_isMultiplayer()) return;
     if (on) {
-        TheC64->MaxAvailableGoBack = 0;
-        ThePrefs.SkipFrames = 10;
-        ThePrefs.LimitSpeed = false;
+        if (ThePrefs.LimitSpeed) {
+            TheC64->MaxAvailableGoBack = 0;
+            ThePrefs.SkipFrames = 10;
+            ThePrefs.LimitSpeed = false;
+        }
     } else {
-        ThePrefs.SkipFrames = 2;
-        ThePrefs.LimitSpeed = true;
+        if (!ThePrefs.LimitSpeed) {
+            ThePrefs.SkipFrames = 2;
+            ThePrefs.LimitSpeed = true;
+        }
     }
 }
 void C64Display::pressMappedKey(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joystick1, uint8 *joystick2, int key) {
@@ -633,7 +638,7 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
         keyPress = 1;
         return;
     }
-    if (! keyPress && showKeyboard && out_state.values[ODROID_INPUT_MENU]){
+    if (! keyPress && showKeyboard && (out_state.values[ODROID_INPUT_MENU] || out_state.values[ODROID_INPUT_VOLUME])){
         //unpress all keys / joystick
         if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_SERVER) *joystick1 = 0xff;
         if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_CLIENT) *joystick2 = 0xff; 
@@ -684,30 +689,32 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
         holdShift = 0;
         
         // this should update the navRunning variable, so i dont have to check it so often with the displaycontent
-        if ((out_state.values[ODROID_INPUT_A] || out_state.values[ODROID_INPUT_LEFT]) && navRunning == 1) {
+        if ((out_state.values[ODROID_INPUT_A] || out_state.values[ODROID_INPUT_LEFT] || out_state.values[ODROID_INPUT_VOLUME]) && navRunning == 1) {
             navRunning = isNAVrunning();
             if (navRunning) navRunning = 2;
         }
-        if (! out_state.values[ODROID_INPUT_A] && ! out_state.values[ODROID_INPUT_LEFT] && navRunning == 2) navRunning = 1;
+        if (! out_state.values[ODROID_INPUT_A] && ! out_state.values[ODROID_INPUT_LEFT] && ! out_state.values[ODROID_INPUT_VOLUME] && navRunning == 2) navRunning = 1;
         
         
         if (! navRunning) {
-            if (out_state.values[ODROID_INPUT_UP]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_UP);
-            if (out_state.values[ODROID_INPUT_DOWN]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_DOWN);
-            if (out_state.values[ODROID_INPUT_LEFT] && keyPress == 0) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_LEFT);
-            if (out_state.values[ODROID_INPUT_RIGHT]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_RIGHT);
-            if (out_state.values[ODROID_INPUT_A]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_A);
-            if (out_state.values[ODROID_INPUT_B]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_B);
-            if (out_state.values[ODROID_INPUT_START]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_START);
-            if (out_state.values[ODROID_INPUT_SELECT]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_SELECT);
-            if (!out_state.values[ODROID_INPUT_UP]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_UP);
-            if (!out_state.values[ODROID_INPUT_DOWN]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_DOWN);
-            if (!out_state.values[ODROID_INPUT_LEFT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_LEFT);
-            if (!out_state.values[ODROID_INPUT_RIGHT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_RIGHT);
-            if (!out_state.values[ODROID_INPUT_A]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_A);
-            if (!out_state.values[ODROID_INPUT_B]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_B);
-            if (!out_state.values[ODROID_INPUT_START]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_START);
-            if (!out_state.values[ODROID_INPUT_SELECT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_SELECT);
+            if (! out_state.values[ODROID_INPUT_VOLUME]){
+                if (out_state.values[ODROID_INPUT_UP]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_UP);
+                if (out_state.values[ODROID_INPUT_DOWN]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_DOWN);
+                if (out_state.values[ODROID_INPUT_LEFT] && keyPress == 0) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_LEFT);
+                if (out_state.values[ODROID_INPUT_RIGHT]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_RIGHT);
+                if (out_state.values[ODROID_INPUT_A]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_A);
+                if (out_state.values[ODROID_INPUT_B]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_B);
+                if (out_state.values[ODROID_INPUT_START]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_START);
+                if (out_state.values[ODROID_INPUT_SELECT]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_SELECT);
+                if (!out_state.values[ODROID_INPUT_UP]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_UP);
+                if (!out_state.values[ODROID_INPUT_DOWN]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_DOWN);
+                if (!out_state.values[ODROID_INPUT_LEFT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_LEFT);
+                if (!out_state.values[ODROID_INPUT_RIGHT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_RIGHT);
+                if (!out_state.values[ODROID_INPUT_A]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_A);
+                if (!out_state.values[ODROID_INPUT_B]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_B);
+                if (!out_state.values[ODROID_INPUT_START]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_START);
+                if (!out_state.values[ODROID_INPUT_SELECT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_SELECT);
+            }
         } else {
             // KEYMAPPING when nav is running
             
@@ -733,6 +740,7 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
         }
         if (out_state.values[ODROID_INPUT_MENU]) {
             if (! mp_isMultiplayer()){ 
+                rewinding = 0; 
                 TheC64->TheSID->PauseSound();
                 odroidFrodoGUI_showMenu();
                 keyPress = 1;
@@ -750,18 +758,25 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
             
         }
         if (!out_state.values[ODROID_INPUT_VOLUME] && keyPress == 2 ) {
-    //        TheC64->TheSID->changeVolumeLevel();
+            TheC64->TheSID->changeVolumeLevel();
             keyPress = 0;
         }
         if (! out_state.values[ODROID_INPUT_VOLUME] && ! out_state.values[ODROID_INPUT_LEFT] && keyPress == 5 ) {
             keyPress = 0;
         }
-        
-        if (! navRunning && out_state.values[ODROID_INPUT_VOLUME] && out_state.values[ODROID_INPUT_LEFT]) {
+        rewinding = 0; 
+        if (!mp_isMultiplayer() && !showKeyboard && ! navRunning && out_state.values[ODROID_INPUT_VOLUME] && out_state.values[ODROID_INPUT_LEFT]) {
             TheC64->LoadSnapshotMemory();
+            rewinding = 1;
+            
             usleep(30000);
             keyPress = 5;
         }
+        if (!showKeyboard && ! navRunning && out_state.values[ODROID_INPUT_VOLUME] && out_state.values[ODROID_INPUT_UP]) {
+            showVirtualKeyboard();
+            keyPress = 1;
+        }
+        
         odroid_keyPress(out_state);
         
         
@@ -826,7 +841,20 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
 void C64Display::NewPrefs(Prefs *prefs)
 {
 }
-
+void C64Display::drawRewind(void) {
+    char c = 2;
+    for (int i = 0; i < 40; i++) {
+        c = 2;
+        for (int b = 0; b < 15; b++) {
+            if (b==13)c = 4;
+            if (b==14)c = 8;
+            sendBuffer[i+150+b + ((120 + i)*DISPLAY_X)] = c;
+            sendBuffer[i+150+b + ((120 - i)*DISPLAY_X)] = c;
+            sendBuffer[i+180+b + ((120 + i)*DISPLAY_X)] = c;
+            sendBuffer[i+180+b + ((120 - i)*DISPLAY_X)] = c;
+        }
+    }
+}
 
 void C64Display::Update(void)
 {

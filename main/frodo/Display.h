@@ -84,7 +84,7 @@ private:
     void pressKey(uint8 *key_matrix, uint8 *rev_matrix, char key);
     void unpressKey(uint8 *key_matrix, uint8 *rev_matrix, char key);
     void writeSomeKeys(uint8 *key_matrix, uint8 *rev_matrix);
-    
+    static void drawRewind(void);
     
     int getKey(int pressX, int pressY);
     
@@ -92,7 +92,7 @@ private:
     int writePosition;
     char holdShift;
     char runningStartSeqence;
-    
+   
 
 public:
     void sendKeys(const char* keys);
@@ -105,6 +105,7 @@ public:
     void reloadDiskNAV(int dsk);
     void setKeymapping(char odroidKey, int c64Key);
     void setStdKeymapping();
+    
 #endif
         
 #ifdef __BEOS__
