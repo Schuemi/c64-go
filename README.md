@@ -107,6 +107,21 @@ How does this work?
 - The server tells the clients what game they whant to play
 - after starting the game on all devices they broadcast RAW TCP packts with joysick and keyboard data to each other. All devices have to know what the other is doing in every vblank.
 
+
+# Rewind 
+
+You can rewind up to 6 seconds, should be enough to defeat this devilish monster!
+
+# Menu wheel
+
+![Menu wheel](https://raw.githubusercontent.com/Schuemi/c64-go/master/res/wheel.PNG)
+
+By pressing select you can open the Menu wheel. If you press up while pressing select, the Keyboard will open. Pressing down, the state saves. Pressing left will rewind and pressing right will forward.
+
+
+
+
+
 # SAM (Simple Assembler and Monitor) (Thanks [fogsag](https://github.com/fogsag) !)
 
 Frodo has a built-in machine language monitor that can be activated by selecting the menu item "SAM". It provides full access to the memory and hardware of the emulated C64 and 1541. SAM is controlled by a command-based interface, you have to connect your Odroid-Go to the PC to use it.
