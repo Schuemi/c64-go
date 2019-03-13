@@ -86,7 +86,7 @@ MOS6502_1541::MOS6502_1541(C64 *c64, Job1541 *job, C64Display *disp, uint8 *Ram,
 	n_flag = z_flag = 0;
 	v_flag = d_flag = c_flag = false;
 	i_flag = true;
-
+       
 	borrowed_cycles = 0;
 
 	via1_t1c = via1_t1l = via1_t2c = via1_t2l = 0;
@@ -566,6 +566,8 @@ void MOS6502_1541::GetState(MOS6502State *s)
 	s->via2_sr = via2_sr;
 	s->via2_acr = via2_acr; s->via2_pcr = via2_pcr;
 	s->via2_ifr = via2_ifr; s->via2_ier = via2_ier;
+        
+        s->IECLines = IECLines;        
 }
 
 
@@ -610,6 +612,10 @@ void MOS6502_1541::SetState(MOS6502State *s)
 	via2_sr = s->via2_sr;
 	via2_acr = s->via2_acr; via2_pcr = s->via2_pcr;
 	via2_ifr = s->via2_ifr; via2_ier = s->via2_ier;
+        
+        IECLines = s->IECLines;      
+        
+        the_display->UpdateLEDs(0, 0, 0, 0);
 }
 
 

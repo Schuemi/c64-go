@@ -561,10 +561,11 @@ static void read_line(void)
 		stop_output = true;
 	} else {
 		input_command_ptr = input_command;
-		strcat(input_command_ptr,in_ptr);
+		strlcat(input_command_ptr,in_ptr, INPUT_LENGTH);
 		fprintf(fout, in_ptr);
 		  size_t len = strlen(input_command);
 		  if (len > 0 && input_command[len-1] == '\n') {
+                      
 			  //Clear input_command next loop!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			  //>>>>>>>>> see after command switch statement:
 			  //memset(input_command, 0, sizeof(input_command));
@@ -599,8 +600,9 @@ static void read_line(void)
 
 static char get_char(void)
 {
-	//return *in_ptr++;
-	return *input_command_ptr++;
+    while(*input_command_ptr < 0x20 && *input_command_ptr){input_command_ptr++;}
+    if (! *input_command_ptr) return 0;
+    return *input_command_ptr++;
 }
 
 

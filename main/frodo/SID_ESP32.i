@@ -27,6 +27,7 @@ ODROID_AUDIO_SINK sink = ODROID_AUDIO_SINK_SPEAKER;
 char stop = 0;
 char noSound = 0;
 char audioPause = 0;
+char speedUpPause = 0;
 int volLevel = 0;
 void DigitalRenderer::audioTask(void* arg)
 {
@@ -41,7 +42,7 @@ printf("audioTask: starting\n");
 #ifndef NO_SOUND
       
     if (ThePrefs.LimitSpeed){
-       
+        if (speedUpPause) {speedUpPause = 0; odroid_audio_volume_set((odroid_volume_level)volLevel);}
         dg->calc_buffer(streamAudioBuffer, audioBufferSize*sizeof(sample));
         for (int i = audioBufferSize - 1; i >= 0; i--) {
             streamAudioBuffer[i*2] = streamAudioBuffer[i];
@@ -51,8 +52,13 @@ printf("audioTask: starting\n");
         if (! stop && ! audioPause) odroid_audio_submit(streamAudioBuffer, audioBufferSize);
         
     } else {
-        memset(streamAudioBuffer, 0, 6*4);
-        if (! stop && ! audioPause) odroid_audio_submit(streamAudioBuffer, 6);
+        if (! speedUpPause) {
+            odroid_audio_volume_set(ODROID_VOLUME_LEVEL0);
+            speedUpPause = 1;
+            memset(streamAudioBuffer, 0, audioBufferSize*sizeof(sample));
+            if (! stop && ! audioPause) odroid_audio_submit(streamAudioBuffer, 6);
+        }
+        
     }
 #endif
     xQueueReceive(audioQueue, &param, portMAX_DELAY);

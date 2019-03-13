@@ -31,7 +31,9 @@ public:
 #endif
 	void CountTOD(void);
 	virtual void TriggerInterrupt(int bit)=0;
-
+        
+        uint8 IECLines;		// State of IEC lines (bit 7 - DATA, bit 6 - CLK, bit 4 - ATN)
+        
 protected:
 	MOS6510 *the_cpu;	// Pointer to 6510
 
@@ -51,7 +53,9 @@ protected:
 		 ta_cnt_phi2,	// Flag: Timer A is counting Phi 2
 		 tb_cnt_phi2,	// Flag: Timer B is counting Phi 2
 	     tb_cnt_ta;		// Flag: Timer B is counting underflows of Timer A
-
+        
+        
+        
 #ifdef FRODO_SC
 	bool ta_irq_next_cycle,		// Flag: Trigger TA IRQ in next cycle
 		 tb_irq_next_cycle,		// Flag: Trigger TB IRQ in next cycle
@@ -77,7 +81,8 @@ public:
 
 	uint8 Joystick1;	// Joystick 1 AND value
 	uint8 Joystick2;	// Joystick 2 AND value
-
+        
+        
 private:
 	void check_lp(void);
 
@@ -96,7 +101,7 @@ public:
 	void WriteRegister(uint16 adr, uint8 byte);
 	virtual void TriggerInterrupt(int bit);
         void insertUserPortCard(UserPortInterface* c);
-	uint8 IECLines;		// State of IEC lines (bit 7 - DATA, bit 6 - CLK, bit 4 - ATN)
+	
 
 private:
 	MOS6569 *the_vic;
@@ -131,6 +136,8 @@ struct MOS6526State {
 	uint8 alm_min;
 	uint8 alm_hr;
 	uint8 int_mask;		// Enabled interrupts
+        
+        uint8 IECLines;
 };
 
 

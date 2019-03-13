@@ -122,6 +122,8 @@ void MOS6526::GetState(MOS6526State *cs)
 
 	cs->int_data = icr;
 	cs->int_mask = int_mask;
+        
+        cs->IECLines = IECLines;
 }
 
 
@@ -161,6 +163,8 @@ void MOS6526::SetState(MOS6526State *cs)
 	ta_cnt_phi2 = ((cra & 0x21) == 0x01);
 	tb_cnt_phi2 = ((crb & 0x61) == 0x01);
 	tb_cnt_ta = ((crb & 0x61) == 0x41);
+        IECLines = cs->IECLines;
+        
 }
 
 

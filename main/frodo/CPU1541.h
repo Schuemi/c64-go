@@ -65,7 +65,7 @@ public:
 
 	uint8 IECLines;			// State of IEC lines (bit 7 - DATA, bit 6 - CLK)
 	bool Idle;				// true: 1541 is idle
-
+       
 private:
 	uint8 read_byte(uint16 adr);
 	uint8 read_byte_io(uint16 adr);
@@ -181,6 +181,8 @@ struct MOS6502State {
 	uint8 via2_pcr;
 	uint8 via2_ifr;
 	uint8 via2_ier;
+        
+        uint8 IECLines;	        
 };
 
 

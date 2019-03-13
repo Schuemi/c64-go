@@ -23,6 +23,7 @@
 #include "freertos/task.h"
 #include "LibOdroidGo.h"
 #include "keyboard.h"
+#include "menuWheel.h"
 #include "Prefs.h"
 #include "SID.h"
 #include "IEC.h"
@@ -69,7 +70,8 @@ char showKeyboard = 0;
 char reDrawKeyboard = 0;
 char reDrawCursor = 0;
 char flipScreen = 0;
-
+char rewinding = 0;
+ 
 const char* writeKeys = NULL;
 
 int cursorX = 10;
@@ -82,7 +84,7 @@ int backGroundHeight = -1;
 int backGroundWidth = -1;
 int keyPress = 0;
 
-
+char showMenuWheel = 0;
 char navRunning = 1;
 
 #define KEYS_COUNT 66
@@ -206,11 +208,14 @@ void C64Display::videoTask(void* arg)
     xQueuePeek(videoQueue, &param, portMAX_DELAY);
     VideoTaskCommand = 0;
     
-    
-    
+    if (rewinding) { drawRewind(); }
+    if (! ThePrefs.LimitSpeed && ! rewinding) { drawForward();  }
   
-    
-    ili9341_write_frame_C64((uint8_t*)sendBuffer, ili9341_palette, showKeyboard, flipScreen);
+    if (showMenuWheel != 1 || showKeyboard) 
+        ili9341_write_frame_C64((uint8_t*)sendBuffer, ili9341_palette, showKeyboard, flipScreen);
+    else
+        ili9341_write_frame_C64_OV((uint8_t*)sendBuffer, ili9341_palette, showKeyboard, flipScreen, (uint16_t*)(menuWheel.pixel_data + 2*menuWheel.width), 100, 43, menuWheel.width, menuWheel.height - 7);
+        
     
     
     if (showKeyboard) {
@@ -308,7 +313,7 @@ C64Display::C64Display(C64 *the_c64) : TheC64(the_c64)
     writeBuffer = framebuffer[0];
     sendBuffer = framebuffer[1];
   
-    
+    rewinding = 0;
     
     cursor = (uint16_t*)heap_caps_malloc(CURSOR_MAX_WIDTH*CURSOR_MAX_HEIGHT*2, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
     if (!cursor){ printf("malloc cursor failed!\n"); return; }
@@ -325,7 +330,7 @@ C64Display::C64Display(C64 *the_c64) : TheC64(the_c64)
     writePosition = 0;
     holdShift = 0;
     runningStartSeqence = 0;
-    
+    firstDisplayUpdate = 1;
     
     /// initial keymapping ///
     setStdKeymapping();
@@ -511,11 +516,15 @@ void C64Display::fastMode(bool on)
 {
     if (mp_isMultiplayer()) return;
     if (on) {
-        ThePrefs.SkipFrames = 10;
-        ThePrefs.LimitSpeed = false;
+        if (ThePrefs.LimitSpeed) {
+            ThePrefs.SkipFrames = 10;
+            ThePrefs.LimitSpeed = false;
+        }
     } else {
-        ThePrefs.SkipFrames = 2;
-        ThePrefs.LimitSpeed = true;
+        if (!ThePrefs.LimitSpeed) {
+            ThePrefs.SkipFrames = 2;
+            ThePrefs.LimitSpeed = true;
+        }
     }
 }
 void C64Display::pressMappedKey(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joystick1, uint8 *joystick2, int key) {
@@ -607,6 +616,110 @@ void C64Display::unpressMappedKey(uint8 *key_matrix, uint8 *rev_matrix, uint8 *j
     }
 }
 
+
+enum SPE_KEYS {
+    SPE_KEYS_REWIND,
+    SPE_KEYS_FORWARD,
+    SPE_KEYS_KEYBOARD,
+    SPE_KEYS_QUICKSAVE
+};
+struct specalKeys {
+    int key1;
+    int key2;
+    int keyEvent;
+    char active;
+};
+specalKeys spKeys[] = { 
+    {ODROID_INPUT_SELECT, ODROID_INPUT_LEFT, SPE_KEYS_REWIND, 0 }, 
+    {ODROID_INPUT_SELECT, ODROID_INPUT_RIGHT, SPE_KEYS_FORWARD, 0 }, 
+    {ODROID_INPUT_SELECT, ODROID_INPUT_UP, SPE_KEYS_KEYBOARD, 0 }, 
+    {ODROID_INPUT_SELECT, ODROID_INPUT_DOWN, SPE_KEYS_QUICKSAVE, 0 }, 
+    {0,0,0,0}   
+};
+bool inSpecialMode = false;
+bool qs = 0;
+void C64Display::doSpecialKey(int special, bool on) {
+    
+    if (special == SPE_KEYS_REWIND) {
+        if (on) {
+            ThePrefs.LimitSpeed = 0;
+            TheC64->LoadSnapshotMemory();
+            rewinding = 1;
+            usleep(60000);
+        } else { ThePrefs.LimitSpeed = 1; rewinding = 0; }
+        
+    }
+    if (special == SPE_KEYS_FORWARD) {  
+        fastMode(on);
+    } 
+    if (special == SPE_KEYS_KEYBOARD) {
+        if (on && ! showKeyboard) showVirtualKeyboard();
+        
+    }
+    if (special == SPE_KEYS_QUICKSAVE) {
+        if (!qs && on) {
+             qs = 1;
+            odroidFrodoGUI_msgBox("Please wait...", "\n\n\nPlease wait while saving state\n\n\n\n", 0);
+            saveState(NULL);
+        }
+        if (qs && ! on) {
+            qs = 0;
+        }
+    }
+    
+}
+
+bool C64Display::checkSpecialKeys(odroid_gamepad_state& out_state) {
+    int i = 0; 
+    int d = 0;
+    bool ret = false;
+    int fakeKey = -1;
+    // are there finished specials?
+    
+    
+    while(! (spKeys[i].key1 == 0 && spKeys[i].key2 == 0)) {
+        
+        if ((! out_state.values[spKeys[i].key1] || ! out_state.values[spKeys[i].key2]) && spKeys[i].active == 2) {
+            // a special event was finished
+           spKeys[i].active = 0;
+           showMenuWheel = 0;
+           doSpecialKey(spKeys[i].keyEvent, false);
+           break; // do only one special at a time
+        }
+        
+        
+        if ((! out_state.values[spKeys[i].key1] || ! out_state.values[spKeys[i].key2])  && spKeys[i].active == 1 ) {
+            // the first button of a spezial button was pressed, but released again. fake buttonpress.
+            spKeys[i].active = 0;
+            showMenuWheel = 0;
+            if (! inSpecialMode)  fakeKey = spKeys[i].key1;// fake the key as pressed
+            
+        }
+        
+        if (out_state.values[spKeys[i].key1] && ! out_state.values[spKeys[i].key2] && spKeys[i].active < 2 ) {
+            // the first button of a special was pressed
+            if (showMenuWheel == 0) showMenuWheel = 1;
+            spKeys[i].active = 1;
+            ret = true;
+        }
+        if (out_state.values[spKeys[i].key1] && out_state.values[spKeys[i].key2] ) {
+            // both buttons of a special were pressed, do the event, and decativate all others
+            showMenuWheel = 2;
+            while(! (spKeys[d].key1 == 0 && spKeys[d].key2 == 0)) { spKeys[d].active = 0; d++; }
+            spKeys[i].active = 2;
+            doSpecialKey(spKeys[i].keyEvent, true);
+            ret = true;
+            inSpecialMode = true;
+            break; // do only one special at a time
+        }
+        
+        i++;
+    }
+    if (fakeKey != -1)  out_state.values[fakeKey] = 1; 
+    if (! ret) inSpecialMode = false;
+    return ret;
+    
+}
 void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joystick1, uint8 *joystick2)
 {
     
@@ -618,55 +731,20 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
         return;
     }
    
-    
-     ///////////// Vkeyboard keypress
-    if (! keyPress && !showKeyboard && out_state.values[ODROID_INPUT_A] && out_state.values[ODROID_INPUT_MENU]){
-        // spezial key, open vKeyboard
-        //unpress all keys / joystick
-        if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_SERVER) *joystick1 = 0xff;
-        if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_CLIENT) *joystick2 = 0xff; 
-        
-        for (int i = 0; i < 8; i++) {key_matrix[i] = 0xff;}
-        for (int i = 0; i < 8; i++) {rev_matrix[i] = 0xff;}
-        showVirtualKeyboard();
-        keyPress = 1;
-        return;
-    }
-    if (! keyPress && showKeyboard && out_state.values[ODROID_INPUT_MENU]){
-        //unpress all keys / joystick
-        if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_SERVER) *joystick1 = 0xff;
-        if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_CLIENT) *joystick2 = 0xff; 
-        
-        for (int i = 0; i < 8; i++) {key_matrix[i] = 0xff;}
-        for (int i = 0; i < 8; i++) {rev_matrix[i] = 0xff;}
-        
-        hideVirtualKeyboard();
-        keyPress = 1;
-        return;
-    }
-    
-    //////// if keypress is 1 I should wait until all keys are released
-    if (keyPress == 1 && ! out_state.values[ODROID_INPUT_A] && ! out_state.values[ODROID_INPUT_MENU]){
-        bool keyNotReleased = false;
-        for (int i = 0; i < ODROID_INPUT_MAX; i++) {
-            if (out_state.values[i]){
-                keyNotReleased = true;
-                break;
-            }
-        }
-        if (! keyNotReleased) keyPress = 0;
-        
-        return;
-    }
-   ///////////////////////////////////
    
+    
    //////////////////////////////
     // update LED
     if (old_led_state[0] != led_state[0]){
         old_led_state[0] = led_state[0];
         if (led_state[0] == DRVLED_ON) {
             odroid_system_led_set(1);
+            // there is disc action. Is nav running?
+            if (navRunning == 1) navRunning = isNAVrunning();
         } else {
+            // there is disc action. Is nav running?
+            if (navRunning == 1) navRunning = isNAVrunning();
+            
             odroid_system_led_set(0);
         }
         /* This is wrong. Sometimes DRVLED_ERROR will come if you should simply change the disc. TODO: blink the blue light if DRVLED_ERROR 
@@ -677,39 +755,37 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
 
         }*/
     }
+    if (!mp_isMultiplayer() && !keyPress && ! navRunning && checkSpecialKeys(out_state)) return;
       ////////////////////////
     if (! showKeyboard) {
-        if (keyPress == 1) return; // should wait until all keys are released
         holdShift = 0;
         
-        // this should update the navRunning variable, so i dont have to check it so often with the displaycontent
-        if (out_state.values[ODROID_INPUT_A] && navRunning == 1) {
-            navRunning = isNAVrunning();
-            if (navRunning) navRunning = 2;
-        }
-        if (! out_state.values[ODROID_INPUT_A] && navRunning == 2) navRunning = 1;
-        
-        
+      
         if (! navRunning) {
-            if (out_state.values[ODROID_INPUT_UP]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_UP);
-            if (out_state.values[ODROID_INPUT_DOWN]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_DOWN);
-            if (out_state.values[ODROID_INPUT_LEFT]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_LEFT);
-            if (out_state.values[ODROID_INPUT_RIGHT]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_RIGHT);
-            if (out_state.values[ODROID_INPUT_A]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_A);
-            if (out_state.values[ODROID_INPUT_B]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_B);
-            if (out_state.values[ODROID_INPUT_START]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_START);
-            if (out_state.values[ODROID_INPUT_SELECT]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_SELECT);
-            if (!out_state.values[ODROID_INPUT_UP]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_UP);
-            if (!out_state.values[ODROID_INPUT_DOWN]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_DOWN);
-            if (!out_state.values[ODROID_INPUT_LEFT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_LEFT);
-            if (!out_state.values[ODROID_INPUT_RIGHT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_RIGHT);
-            if (!out_state.values[ODROID_INPUT_A]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_A);
-            if (!out_state.values[ODROID_INPUT_B]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_B);
-            if (!out_state.values[ODROID_INPUT_START]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_START);
-            if (!out_state.values[ODROID_INPUT_SELECT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_SELECT);
+            if (mp_isMultiplayer() && out_state.values[ODROID_INPUT_SELECT]) { showVirtualKeyboard(); keyPress = 4; return;  }
+            // I think some people are used to A + Menu to go to the keyboard. So this should be possible, too
+            if (out_state.values[ODROID_INPUT_A] && out_state.values[ODROID_INPUT_MENU]) { showVirtualKeyboard(); keyPress = 1; return;  }
+            if (! out_state.values[ODROID_INPUT_VOLUME]){
+                if (out_state.values[ODROID_INPUT_UP]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_UP);
+                if (out_state.values[ODROID_INPUT_DOWN]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_DOWN);
+                if (out_state.values[ODROID_INPUT_LEFT]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_LEFT);
+                if (out_state.values[ODROID_INPUT_RIGHT]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_RIGHT);
+                if (out_state.values[ODROID_INPUT_A]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_A);
+                if (out_state.values[ODROID_INPUT_B]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_B);
+                if (out_state.values[ODROID_INPUT_START]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_START);
+                if (out_state.values[ODROID_INPUT_SELECT]) pressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_SELECT);
+                if (!out_state.values[ODROID_INPUT_UP]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_UP);
+                if (!out_state.values[ODROID_INPUT_DOWN]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_DOWN);
+                if (!out_state.values[ODROID_INPUT_LEFT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_LEFT);
+                if (!out_state.values[ODROID_INPUT_RIGHT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_RIGHT);
+                if (!out_state.values[ODROID_INPUT_A]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_A);
+                if (!out_state.values[ODROID_INPUT_B]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_B);
+                if (!out_state.values[ODROID_INPUT_START]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_START);
+                if (!out_state.values[ODROID_INPUT_SELECT]) unpressMappedKey(key_matrix, rev_matrix, joystick1, joystick2, ODROID_INPUT_SELECT);
+            }
         } else {
             // KEYMAPPING when nav is running
-            
+           
             if (out_state.values[ODROID_INPUT_UP]) *joystick1 &= ~(1);
             if (out_state.values[ODROID_INPUT_DOWN]) *joystick1 &= ~(1 << 1);
             if (out_state.values[ODROID_INPUT_LEFT]) *joystick1 &= ~(1 << 2);
@@ -730,30 +806,33 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
             
             
         }
-        if (out_state.values[ODROID_INPUT_MENU]) {
+        if (out_state.values[ODROID_INPUT_MENU] && keyPress == 0) {
             if (! mp_isMultiplayer()){ 
                 TheC64->TheSID->PauseSound();
                 odroidFrodoGUI_showMenu();
-                keyPress = 1;
                 TheC64->TheSID->ResumeSound();
+                inSpecialMode = true;
+                keyPress = 1;
             }
         }
-        
-
-        
-        
-        
-        if (out_state.values[ODROID_INPUT_VOLUME] && keyPress == 0 ) {
-            keyPress = 2;
-            TheC64->TheSID->changeVolumeLevel();
-            
+        if (! out_state.values[ODROID_INPUT_MENU] && keyPress == 1) {
+            keyPress = 0;
         }
-        if (!out_state.values[ODROID_INPUT_VOLUME] && keyPress == 2 )  keyPress = 0;
-        
+        if (out_state.values[ODROID_INPUT_VOLUME] && keyPress == 0 ) {
+            TheC64->TheSID->changeVolumeLevel();
+            keyPress = 2;
+        }
+        if (!out_state.values[ODROID_INPUT_VOLUME] && keyPress == 2 ) {
+            keyPress = 0;
+        }
+       
         odroid_keyPress(out_state);
         
         
     } else {
+        
+        
+            
         if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_SERVER) *joystick1 = 0xff;
         if (!mp_isMultiplayer() || getMultiplayState() == MULTIPLAYER_CONNECTED_CLIENT) *joystick2 = 0xff; 
         
@@ -797,7 +876,13 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
             unpressKey(key_matrix, rev_matrix,  (char)(keyPressB & 0xff));  
             keyPressB = -1;
         }
-       
+        if (! out_state.values[ODROID_INPUT_MENU] && keyPress == 1) {
+            keyPress = 0;
+        }
+        if (out_state.values[ODROID_INPUT_MENU] && keyPress == 0) {
+            hideVirtualKeyboard();
+            keyPress = 1;
+        }
              
     }
     
@@ -814,11 +899,44 @@ void C64Display::PollKeyboard(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joyst
 void C64Display::NewPrefs(Prefs *prefs)
 {
 }
+void C64Display::drawRewind(void) {
+    char c = 15;
+    for (int i = 0; i < 40; i++) {
+        c = 15;
+        for (int b = 0; b < 15; b++) {
+            if (b==13)c = 12;
+            if (b==14)c = 1;
+            sendBuffer[i+150+b + ((120 + i)*DISPLAY_X)] = c;
+            sendBuffer[i+150+b + ((120 - i)*DISPLAY_X)] = c;
+            sendBuffer[i+180+b + ((120 + i)*DISPLAY_X)] = c;
+            sendBuffer[i+180+b + ((120 - i)*DISPLAY_X)] = c;
+        }
+    }
+}
+void C64Display::drawForward(void) {
+    char c = 15;
+    for (int i = 0; i < 40; i++) {
+        c = 15;
+        for (int b = 0; b < 15; b++) {
+            if (b==13)c = 12;
+            if (b==14)c = 1;
+            sendBuffer[(40 - i)+150+b + ((120 + i)*DISPLAY_X)] = c;
+            sendBuffer[(40 - i)+150+b + ((120 - i)*DISPLAY_X)] = c;
+            sendBuffer[(40 - i)+180+b + ((120 + i)*DISPLAY_X)] = c;
+            sendBuffer[(40 - i)+180+b + ((120 - i)*DISPLAY_X)] = c;
+        }
+    }
+}
 
-
+void C64Display::resetUpdate(void)
+{
+    memset(writeBuffer, 0, DISPLAY_X * DISPLAY_Y*sizeof(pixel));
+    memset(sendBuffer, 0, DISPLAY_X * DISPLAY_Y*sizeof(pixel));
+    firstDisplayUpdate = 1;
+}
 void C64Display::Update(void)
 {
-    
+    if (firstDisplayUpdate) { navRunning = isNAVrunning(); firstDisplayUpdate = 0; }
     pixel* swapBuffer = sendBuffer;
     sendBuffer = writeBuffer;
     writeBuffer = swapBuffer;
@@ -848,7 +966,7 @@ void C64Display::setStdKeymapping() {
     setKeymapping(ODROID_INPUT_A, JOY1_BTN);
     setKeymapping(ODROID_INPUT_B, ' ');
     setKeymapping(ODROID_INPUT_START, KEY_R_S);
-    setKeymapping(ODROID_INPUT_SELECT, KEY_FM);
+    setKeymapping(ODROID_INPUT_SELECT, KEY_F7);
     
 }
 void C64Display::setKeymapping(char odroidKey, int c64Key) {
@@ -921,7 +1039,7 @@ bool C64Display::isNAVrunning() {
             
         }
     }
-  
+    //printf("is nav running?%04x\n", crc);
     if (crc == 0x6E2A) return true;
     return false;
 }

@@ -1307,6 +1307,50 @@ void ili9341_clear(uint16_t color)
 
     send_continue_wait();
 }
+void ili9341_write_frame_C64_OV(uint8_t* buffer, uint16_t* palette, char showKeyboard, char flipScreen, uint16_t* overlay, short overlay_left, short overlay_top, short overlay_width, short overlay_height)
+{
+    if (stopDisplay) return;
+    odroid_display_lock_c64_display();
+    register short x, y, r;
+    
+    if (! showKeyboard)
+        send_reset_drawing(0, 0, 320, 240);
+    else 
+        send_reset_drawing(0, 0, 320, 140);
+        
+   
+    int until = 240 + 12;
+    int start = 12;
+    if (showKeyboard) {
+        if (! flipScreen) until = 140 + 12;
+        if (flipScreen)   start = 12 + 100;
+    }
+      
+    
+    for (y = start; y < until; y+= 5)
+    {
+        uint16_t* line_buffer = line_buffer_get();
+        for (r = 0; r < 5; r++) {
+            for (x = 32; x < 320 + 32; ++x)
+            {
+                line_buffer[(r*320) + (x - 32)] = palette[buffer[(y+r) * 0x180 + x]];
+                if (overlay != NULL) {
+                    if (x>= overlay_left && x < (overlay_left + overlay_width) && y >= overlay_top && y <= overlay_top + overlay_height) {
+                        uint16_t pixel = overlay[(x - overlay_left) + ((r + y - overlay_top) *  overlay_width)];
+                        if (pixel != overlay[0])
+                            line_buffer[(r*320) + (x - 32)] = pixel << 8 | pixel >> 8;
+                    }
+                }
+            }
+        }
+
+        send_continue_line(line_buffer, 320*5, 1);
+    }
+    
+
+    //send_continue_wait(); // it crashed sometimes, if i don't comment it out (abort in this function). Should investigate why...
+    odroid_display_unlock_c64_display();
+}
 
 void ili9341_write_frame_C64(uint8_t* buffer, uint16_t* palette, char showKeyboard, char flipScreen)
 {

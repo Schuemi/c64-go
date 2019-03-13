@@ -34,6 +34,7 @@ bool C64_SaveSnapshot(char *filename) {
 }
 bool C64_LoadSnapshot(char *filename) {
     if (! theC64) return false;
+    theC64->TheDisplay->resetUpdate();
     return theC64->LoadSnapshot(filename);
 }
 bool c64_isNAVRunning() {
@@ -120,6 +121,7 @@ void C64_1541emluation( char on ) {
     Prefs p = ThePrefs;
     if (on)p.Emul1541Proc = true; else p.Emul1541Proc = false;
     theC64->NewPrefs(&p);
+    
     ThePrefs = p;
 }
 void C64_setFrameSkip( int frames ) {
