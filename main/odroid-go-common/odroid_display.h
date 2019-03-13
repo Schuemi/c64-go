@@ -30,6 +30,7 @@ void send_continue_line(uint16_t *line, int width, int lineCount);
 void ili9341_write_frame_sms(uint8_t* buffer, uint16_t color[], uint8_t isGameGear, uint8_t scale);
 void ili9341_write_frame_nes(uint8_t* buffer, uint16_t* myPalette, uint8_t scale);
 void ili9341_write_frame_msx(short left, short top, short width, short height, uint16_t* buffer, uint16_t bgColor);
+void ili9341_write_frame_C64_OV(uint8_t* buffer, uint16_t* palette, char showKeyboard, char flipScreen, uint16_t* overlay, short overlay_left, short overlay_top, short overlay_width, short overlay_height);
 void ili9341_write_frame_C64(uint8_t* buffer, uint16_t* palette, char showKeyboard, char flipScreen);
 
 void backlight_percentage_set(int value);

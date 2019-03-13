@@ -34,6 +34,7 @@ bool C64_SaveSnapshot(char *filename) {
 }
 bool C64_LoadSnapshot(char *filename) {
     if (! theC64) return false;
+    theC64->TheDisplay->resetUpdate();
     return theC64->LoadSnapshot(filename);
 }
 bool c64_isNAVRunning() {

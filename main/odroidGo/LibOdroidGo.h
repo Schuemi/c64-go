@@ -73,6 +73,8 @@ char mp_isMultiplayer();
 char mp_isServer();
 #endif
 
+char saveState(const char* fileName);
+
 ///////////// function keys ////////////////////
 void c64_beforeStart();
 void c64_started();

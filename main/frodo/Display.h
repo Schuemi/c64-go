@@ -61,6 +61,7 @@ public:
 	void Speedometer(int speed);
 	uint8 *BitmapBase(void);
 	int BitmapXMod(void);
+        void resetUpdate(void);
 #ifdef __riscos__
 	void PollKeyboard(uint8 *remote_key_matrix, uint8 *rev_matrix, uint8 *joystick, uint8 *joystick2);
 #else
@@ -77,14 +78,16 @@ public:
 private:
     
     
-    
-     void getBitByteKey(char* bit, char* byte, char key);
+    bool checkSpecialKeys(odroid_gamepad_state& out_state);
+    void doSpecialKey(int special, bool on);
+    void getBitByteKey(char* bit, char* byte, char key);
     void pressMappedKey(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joystick1, uint8 *joystick2, int key);
     void unpressMappedKey(uint8 *key_matrix, uint8 *rev_matrix, uint8 *joystick1, uint8 *joystick2, int key);
     void pressKey(uint8 *key_matrix, uint8 *rev_matrix, char key);
     void unpressKey(uint8 *key_matrix, uint8 *rev_matrix, char key);
     void writeSomeKeys(uint8 *key_matrix, uint8 *rev_matrix);
     static void drawRewind(void);
+    static void drawForward(void);
     
     int getKey(int pressX, int pressY);
     
@@ -92,7 +95,7 @@ private:
     int writePosition;
     char holdShift;
     char runningStartSeqence;
-   
+    char firstDisplayUpdate;
 
 public:
     void sendKeys(const char* keys);

@@ -228,7 +228,7 @@ void C64::VBlank(bool draw_frame)
         
         /* save snapshot in memory */
         
-        if (! mp_isMultiplayer() && ThePrefs.LimitSpeed && vblankCounter++ > 5)  {
+        if (! mp_isMultiplayer() && vblankCounter++ > 5)  {
             vblankCounter= 0;
             SaveSnapshotMemory();
         }

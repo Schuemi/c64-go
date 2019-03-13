@@ -478,10 +478,19 @@ void client_try_connect()
         
         
         char buffer[9];
+        char stri[100];
         buffer[0] = 'H';buffer[1] = 'L';buffer[2] = 'O';
         memcpy(buffer + 3,  &myIp.addr, 4);
         NETSend(0, buffer, 7);
+        NETRecv(0, buffer, 1);
+        
+        snprintf(stri, 100, "You are player %d.\n\nWaiting for the server to start \nthe game.", buffer[0] + 1);
+        odroidFrodoGUI_msgBox("Multiplayer", stri, 0);
+        
         printf("wait seed...\n");
+        
+        
+        
         int s = NETRecv(0,buffer, 9);
         myPlayerNumber = buffer[7];
         currentPlayers = buffer[8];
@@ -489,7 +498,8 @@ void client_try_connect()
         
         // setting random seed
         srand(atoi(buffer));
-          
+        
+        
           printf("wait rom...\n");
           
           int g = recievDataBlob(0,playFileName, 1024);
@@ -509,7 +519,7 @@ void client_try_connect()
     Addr.sin_port        = htons(1234);
     bind(SSocket,(struct sockaddr *)&Addr,sizeof(Addr));
             
-   // odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+    odroid_settings_WLAN_set(ODROID_WLAN_NONE);
     
    
 }
@@ -551,7 +561,9 @@ void server_wait_for_player()
              char buffer[8];
              printf("wait message...\n");
              int s = NETRecv(currentPlayers, buffer, 7);
-            
+             buffer[0] = currentPlayers + 1;
+             NETSend(currentPlayers, buffer, 1);
+             
              server_state = MP_SERVER_WAITING;
              
          } else {
@@ -595,7 +607,7 @@ void server_wait_for_player()
     xTaskCreatePinnedToCore(&sendTask, "sendTask", 2048, NULL, 5, NULL, 1);
     xTaskCreatePinnedToCore(&recievTask, "recievTask", 2048, NULL, 5, NULL, 1);        
             
-   //odroid_settings_WLAN_set(ODROID_WLAN_NONE);
+   odroid_settings_WLAN_set(ODROID_WLAN_NONE);
     
    
    // set addr to broadcast
