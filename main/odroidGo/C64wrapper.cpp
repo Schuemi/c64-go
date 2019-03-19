@@ -100,6 +100,7 @@ void C64_setKeymapping(char odroidKey, int c64Key) {
 void C64_Reset() {
     if (! theC64) return;
     theC64->Reset();
+    theC64->TheDisplay->resetUpdate();
 }
 
 void C64_PauseAudio() {
